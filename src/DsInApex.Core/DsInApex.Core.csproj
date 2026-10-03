@@ -16,10 +16,36 @@
     <LangVersion>latest</LangVersion>
     <UseWinUI>false</UseWinUI>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- P7：便携包不随附调试符号（Core 的 .pdb 也会被复制进 App 输出目录） -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <!-- WMI 进程启动/停止事件监听（ProcessMonitorService）。
+         net10.0-windows 下 System.Management 必须显式引用；缺失则 WMI watcher 无法编译。
+         已内置降级路径：WMI 不可用时由 250ms 轮询兜底。 -->
+    <PackageReference Include="System.Management" Version="10.0.0" />
+    <!-- ⚠️ 实测更正（P6）：Microsoft.Win32.Registry **不要显式引用**。
+         先前 README 记载「net10.0-windows 下非内置、必须显式引用」是错的 ——
+         加了以后编译器报 NU1510（该包随框架提供，会被裁剪）。
+         直接用 Registry.CurrentUser / RegistryKey 即可，零包依赖。 -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 官方支持游戏库（215 条），作为离线兜底数据源。
+         LogicalName 必须与 CloudGameListService.EmbeddedResourceName 常量逐字一致。 -->
+    <EmbeddedResource Include="Data\supported_games.json">
+      <LogicalName>DsInApex.Core.Data.supported_games.json</LogicalName>
+    </EmbeddedResource>
+
+    <!-- 驱动清单（P4）。上游把它散在 Inno 脚本 / PS 脚本 / JSON 三处，
+         DIA 收敛为这份嵌入资源作唯一真源。LogicalName 须与常量一致。 -->
+    <EmbeddedResource Include="Data\driver-manifest.json">
+      <LogicalName>DsInApex.Core.Data.driver-manifest.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

@@ -4,16 +4,113 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:loc="using:DsInApex.App.Localization"
+    xmlns:vm="using:DsInApex.App.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="32,24">
-        <StackPanel Spacing="10">
+    <!-- ══════════════════════════════════════════════════════════════════
+         P3 · 学习记录页
+         对应上游 GameListWindow 的「Learned Executables」tab + LearnedExecutablesWindow。
+         ⚠️ 上游用 DataGrid（WinUI 3 无内置）→ DIA 改用 ListView + x:Bind 行模板。
+         ══════════════════════════════════════════════════════════════════ -->
+
+    <Grid Padding="24,20" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ══ 页头 ══ -->
+        <StackPanel Grid.Row="0" Spacing="4">
             <TextBlock loc:Localize.Key="Loc_NavLearned" FontSize="24" FontWeight="SemiBold" />
             <TextBlock loc:Localize.Key="Loc_PageLearnedDesc" FontSize="13" Opacity="0.7" TextWrapping="Wrap" />
-            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
-            <TextBlock loc:Localize.Key="Loc_PlaceholderPending" FontSize="12" Opacity="0.5" />
         </StackPanel>
+
+        <!-- ══ 工具栏 ══ -->
+        <Grid Grid.Row="1" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <AutoSuggestBox Grid.Column="0" MinWidth="200" QueryIcon="Find"
+                            loc:Localize.Key="Loc_LearnedSearchPlaceholder"
+                            TextChanged="OnSearchTextChanged" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button loc:Localize.Key="Loc_BtnSelectAll" Click="OnSelectAllClick" />
+                <Button loc:Localize.Key="Loc_BtnDeleteLearned" Click="OnDeleteSelectedClick"
+                        IsEnabled="{x:Bind ViewModel.CanDelete, Mode=OneWay}" />
+                <Button loc:Localize.Key="Loc_BtnExportLearned" Click="OnExportClick"
+                        IsEnabled="{x:Bind ViewModel.CanExport, Mode=OneWay}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ══ 统计与操作反馈 ══ -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="{x:Bind ViewModel.StatsText, Mode=OneWay}" FontSize="12" Opacity="0.72" />
+            <TextBlock Text="{x:Bind ViewModel.Message, Mode=OneWay}" FontSize="12" Opacity="0.6"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- ══ 列表 + 空态 ══ -->
+        <Grid Grid.Row="3">
+            <ListView ItemsSource="{x:Bind ViewModel.Items, Mode=OneWay}" SelectionMode="None">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0,0,0,6" />
+                        <Setter Property="MinHeight" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LearnedRowItem">
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="12,10">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="1.4*" />
+                                    <ColumnDefinition Width="1.6*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <CheckBox Grid.Column="0" MinWidth="0"
+                                          IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind GameTitle}" FontSize="13"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" Text="{x:Bind Executable}" FontSize="12" Opacity="0.8"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="3" Text="{x:Bind DetectionMethod}" FontSize="12" Opacity="0.8"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="4" Text="{x:Bind SessionsDisplay}" FontSize="12"
+                                           Opacity="0.8" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="5" Text="{x:Bind LastSeenDisplay}" FontSize="12"
+                                           Opacity="0.7" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="6" loc:Localize.Key="Loc_BtnDelete"
+                                        Click="OnDeleteRowClick" Tag="{x:Bind}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6"
+                        Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}">
+                <TextBlock loc:Localize.Key="Loc_LearnedEmpty" FontSize="14" Opacity="0.7"
+                           HorizontalAlignment="Center" />
+                <TextBlock loc:Localize.Key="Loc_LearnedEmptySubtitle" FontSize="12" Opacity="0.5"
+                           HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" />
+            </StackPanel>
+        </Grid>
     </Grid>
 </Page>

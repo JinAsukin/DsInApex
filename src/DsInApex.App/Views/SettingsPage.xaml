@@ -9,11 +9,341 @@
     mc:Ignorable="d">
 
     <Grid Padding="32,24">
-        <StackPanel Spacing="10">
-            <TextBlock loc:Localize.Key="Loc_NavSettings" FontSize="24" FontWeight="SemiBold" />
-            <TextBlock loc:Localize.Key="Loc_PageSettingsDesc" FontSize="13" Opacity="0.7" TextWrapping="Wrap" />
-            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
-            <TextBlock loc:Localize.Key="Loc_PlaceholderPending" FontSize="12" Opacity="0.5" />
-        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="14" MaxWidth="860" HorizontalAlignment="Left">
+
+                <!-- ══ 页头 ══ -->
+                <StackPanel Spacing="6">
+                    <TextBlock loc:Localize.Key="Loc_NavSettings" FontSize="24" FontWeight="SemiBold" />
+                    <TextBlock loc:Localize.Key="Loc_PageSettingsDesc" FontSize="13" Opacity="0.7" TextWrapping="Wrap" />
+                    <TextBlock loc:Localize.Key="Loc_AutoSaveHint" FontSize="11" Opacity="0.5" />
+                </StackPanel>
+
+                <!-- ══ 自动检测 ══ -->
+                <Expander loc:Localize.Header="Loc_SectionAutoDetect" IsExpanded="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_EnableDetection" />
+                                <TextBlock loc:Localize.Key="Loc_EnableDetectionHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                          IsOn="{x:Bind ViewModel.AutoDetectGames, Mode=TwoWay}" />
+                        </Grid>
+
+                        <!-- 启动条件：仅当启用检测时有意义 -->
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.AutoDetectGames, Mode=OneWay}">
+                            <TextBlock loc:Localize.Key="Loc_LaunchCriteria" FontSize="12" Opacity="0.65" />
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock loc:Localize.Key="Loc_CriteriaAdaptive" VerticalAlignment="Center" />
+                                <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                              IsOn="{x:Bind ViewModel.TriggerOnAdaptiveTriggers, Mode=TwoWay}" />
+                            </Grid>
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock loc:Localize.Key="Loc_CriteriaHaptic" VerticalAlignment="Center" />
+                                <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                              IsOn="{x:Bind ViewModel.TriggerOnHapticFeedback, Mode=TwoWay}" />
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══ 配置 ══ -->
+                <Expander loc:Localize.Header="Loc_SectionConfig" IsExpanded="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="14">
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_ManualBridge" />
+                                <TextBlock loc:Localize.Key="Loc_ManualBridgeHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                          IsOn="{x:Bind ViewModel.ManualBridge, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_Notifications" />
+                                <TextBlock loc:Localize.Key="Loc_NotificationsHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                          IsOn="{x:Bind ViewModel.EnableNotifications, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_PillHaptics" />
+                                <TextBlock Text="{x:Bind ViewModel.HapticThreshold, Mode=OneWay}"
+                                           FontSize="12" Opacity="0.6" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                          IsOn="{x:Bind ViewModel.EnableRumble, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16" Visibility="{x:Bind ViewModel.EnableRumble, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_HapticThreshold" />
+                                <TextBlock loc:Localize.Key="Loc_HapticThresholdHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <NumberBox Grid.Column="1" Width="140" Minimum="0" Maximum="95"
+                                       SmallChange="1" LargeChange="5"
+                                       SpinButtonPlacementMode="Inline"
+                                       Value="{x:Bind ViewModel.HapticThreshold, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_InitTimeout" />
+                                <TextBlock loc:Localize.Key="Loc_InitTimeoutHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <NumberBox Grid.Column="1" Width="140" Minimum="5" Maximum="120"
+                                       SmallChange="1" LargeChange="5"
+                                       SpinButtonPlacementMode="Inline"
+                                       Value="{x:Bind ViewModel.InitTimeoutSeconds, Mode=TwoWay}" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══ 外观 ══ -->
+                <Expander loc:Localize.Header="Loc_SectionAppearance" IsExpanded="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_Language" />
+                                <TextBlock loc:Localize.Key="Loc_LanguageHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <RadioButtons Grid.Column="1" MaxColumns="2"
+                                          SelectedIndex="{x:Bind ViewModel.LanguageIndex, Mode=TwoWay}">
+                                <RadioButton Content="简体中文" />
+                                <RadioButton Content="English" />
+                            </RadioButtons>
+                        </Grid>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_Theme" />
+                                <TextBlock loc:Localize.Key="Loc_ThemeHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <RadioButtons Grid.Column="1" MaxColumns="3"
+                                          SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}">
+                                <RadioButton loc:Localize.Key="Loc_ThemeSystem" />
+                                <RadioButton loc:Localize.Key="Loc_ThemeLight" />
+                                <RadioButton loc:Localize.Key="Loc_ThemeDark" />
+                            </RadioButtons>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══ P6 · 启动与后台 ══ -->
+                <Expander loc:Localize.Header="Loc_SectionStartup" IsExpanded="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="14">
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_StartWithWindows" />
+                                <TextBlock loc:Localize.Key="Loc_StartWithWindowsHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                          IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" />
+                        </Grid>
+
+                        <!-- 自启项异常（便携版移动目录后必然出现的路径漂移 / 注册表读不到） -->
+                        <InfoBar IsOpen="{x:Bind ViewModel.AutoStartIssueVisible, Mode=OneWay}"
+                                 Severity="{x:Bind ViewModel.AutoStartIssueSeverity, Mode=OneWay}"
+                                 Title="{x:Bind ViewModel.AutoStartIssueTitle, Mode=OneWay}"
+                                 Message="{x:Bind ViewModel.AutoStartIssueMessage, Mode=OneWay}"
+                                 IsClosable="False">
+                            <InfoBar.ActionButton>
+                                <Button loc:Localize.Key="Loc_StartWithWindowsRepair"
+                                        Visibility="{x:Bind ViewModel.AutoStartCanRepair, Mode=OneWay}"
+                                        Click="OnRepairAutoStartClick" />
+                            </InfoBar.ActionButton>
+                        </InfoBar>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_CloseToTray" />
+                                <TextBlock loc:Localize.Key="Loc_CloseToTrayHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent=""
+                                          IsOn="{x:Bind ViewModel.CloseWindowToTray, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_CheckUpdatesOnStartup" />
+                                <TextBlock loc:Localize.Key="Loc_CheckUpdatesOnStartupHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <ToggleSwitch MinWidth="0" OnContent="" OffContent=""
+                                              IsOn="{x:Bind ViewModel.CheckUpdatesOnStartup, Mode=TwoWay}" />
+                                <Button loc:Localize.Key="Loc_CheckNow" Click="OnCheckUpdatesClick" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 自启项诊断：登记值与本机位置都要能复制出来对账 -->
+                        <StackPanel Spacing="3">
+                            <TextBlock loc:Localize.Key="Loc_TrayStartWithWindows" FontSize="12" Opacity="0.65" />
+                            <TextBlock Text="{x:Bind ViewModel.AutoStartRegisteredCommand, Mode=OneWay}"
+                                       FontSize="11" Opacity="0.75" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                            <TextBlock Text="{x:Bind ViewModel.AutoStartExpectedCommand, Mode=OneWay}"
+                                       FontSize="11" Opacity="0.75" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══ P6 · 便携部署（替代安装器的自查责任） ══ -->
+                <Expander loc:Localize.Header="Loc_PortableInfo" IsExpanded="False"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="10">
+                        <TextBlock loc:Localize.Key="Loc_PortableHint"
+                                   FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+
+                        <InfoBar IsOpen="{x:Bind ViewModel.PortableWritableWarningVisible, Mode=OneWay}"
+                                 Severity="Warning" IsClosable="False"
+                                 Message="{x:Bind ViewModel.PortableWritableWarningText, Mode=OneWay}" />
+
+                        <Grid ColumnSpacing="14" RowSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock loc:Localize.Key="Loc_PortableAppDir" FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PortableAppDir}" FontSize="12"
+                                       TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+
+                            <TextBlock Grid.Row="1" loc:Localize.Key="Loc_PortableEngine" FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.PortableEngine, Mode=OneWay}"
+                                       FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+
+                            <TextBlock Grid.Row="2" loc:Localize.Key="Loc_PortablePrereq" FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.PortablePrereq, Mode=OneWay}"
+                                       FontSize="12" TextWrapping="Wrap" />
+
+                            <TextBlock Grid.Row="3" loc:Localize.Key="Loc_PortableDataDir" FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind ViewModel.PortableDataDir}" FontSize="12"
+                                       TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+
+                            <TextBlock Grid.Row="4" loc:Localize.Key="Loc_PortableLicense" FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind ViewModel.PortableLicense, Mode=OneWay}"
+                                       FontSize="12" TextWrapping="Wrap" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══ P6 · 控制器恢复状态（引擎看门狗之外的只读呈现 + 手动兜底） ══ -->
+                <Expander loc:Localize.Header="Loc_SectionRecovery" IsExpanded="False"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="10">
+                        <InfoBar IsOpen="True"
+                                 Severity="{x:Bind ViewModel.RecoverySeverity, Mode=OneWay}"
+                                 Title="{x:Bind ViewModel.RecoverySummary, Mode=OneWay}"
+                                 Message="{x:Bind ViewModel.RecoveryDetail, Mode=OneWay}"
+                                 IsClosable="False">
+                            <InfoBar.ActionButton>
+                                <Button loc:Localize.Key="Loc_RecoveryRestore"
+                                        Visibility="{x:Bind ViewModel.RecoveryNeedsAttention, Mode=OneWay}"
+                                        Click="OnRestoreVisibilityClick" />
+                            </InfoBar.ActionButton>
+                        </InfoBar>
+
+                        <TextBlock loc:Localize.Key="Loc_RecoveryExplain"
+                                   FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                        <TextBlock Text="{x:Bind ViewModel.RecoveryRunOnceText, Mode=OneWay}"
+                                   FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+
+                        <Button loc:Localize.Key="Loc_Refresh" Click="OnRefreshRecoveryClick" />
+
+                        <TextBlock Text="{x:Bind ViewModel.RecoveryMarkerPathText}"
+                                   FontSize="11" Opacity="0.55" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══ 设置文件位置（可选中复制，便于备份与排障） ══ -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock loc:Localize.Key="Loc_SectionConfig" FontSize="12" Opacity="0.65" />
+                        <TextBlock Text="{x:Bind ViewModel.SettingsFilePath}" FontSize="12"
+                                   TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>

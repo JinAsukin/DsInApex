@@ -4,16 +4,155 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:loc="using:DsInApex.App.Localization"
+    xmlns:vm="using:DsInApex.App.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="32,24">
-        <StackPanel Spacing="10">
+    <!-- ══════════════════════════════════════════════════════════════════
+         P3 · 游戏库页
+         对应上游 GameListWindow.xaml 的「Certified Games」部分。
+         ⚠️ 上游该文件含 19 Trigger + 2 MultiTrigger + 20 ControlTemplate，
+            DIA 不翻译 WPF 模板，改用 WinUI 原生控件 + x:Bind 状态绑定重写。
+         ══════════════════════════════════════════════════════════════════ -->
+
+    <Grid Padding="24,20" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ══ 页头 ══ -->
+        <StackPanel Grid.Row="0" Spacing="4">
             <TextBlock loc:Localize.Key="Loc_NavGameLibrary" FontSize="24" FontWeight="SemiBold" />
             <TextBlock loc:Localize.Key="Loc_PageGameLibraryDesc" FontSize="13" Opacity="0.7" TextWrapping="Wrap" />
-            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
-            <TextBlock loc:Localize.Key="Loc_PlaceholderPending" FontSize="12" Opacity="0.5" />
         </StackPanel>
+
+        <!-- ══ 工具栏：搜索 / 筛选 / 排序 / 云同步 ══ -->
+        <Grid Grid.Row="1" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <AutoSuggestBox Grid.Column="0" MinWidth="200" QueryIcon="Find"
+                            loc:Localize.Key="Loc_GamesSearchPlaceholder"
+                            TextChanged="OnSearchTextChanged" />
+
+            <ComboBox Grid.Column="1" MinWidth="160"
+                      SelectedIndex="{x:Bind ViewModel.FilterIndex, Mode=TwoWay}">
+                <ComboBoxItem loc:Localize.Key="Loc_GamesFilterAll" />
+                <ComboBoxItem loc:Localize.Key="Loc_GamesFilterAdaptive" />
+                <ComboBoxItem loc:Localize.Key="Loc_GamesFilterHaptic" />
+                <ComboBoxItem loc:Localize.Key="Loc_GamesFilterExcluded" />
+            </ComboBox>
+
+            <ComboBox Grid.Column="2" MinWidth="130"
+                      SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}">
+                <ComboBoxItem loc:Localize.Key="Loc_GamesSortTitle" />
+                <ComboBoxItem loc:Localize.Key="Loc_GamesSortAppId" />
+            </ComboBox>
+
+            <Button Grid.Column="3"
+                    loc:Localize.Key="Loc_GamesSyncCloud"
+                    Command="{x:Bind ViewModel.SyncCloudCommand}" />
+        </Grid>
+
+        <!-- ══ 统计行 ══ -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="{x:Bind ViewModel.StatsText, Mode=OneWay}" FontSize="12" Opacity="0.72" />
+            <TextBlock Text="{x:Bind ViewModel.SyncStatusText, Mode=OneWay}" FontSize="12" Opacity="0.55" />
+        </StackPanel>
+
+        <!-- ══ 列表（虚拟化；封面缺失时显示首字母色块） ══ -->
+        <ListView Grid.Row="3"
+                  ItemsSource="{x:Bind ViewModel.Games, Mode=OneWay}"
+                  SelectionMode="None"
+                  IsItemClickEnabled="False">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,0,6" />
+                    <Setter Property="MinHeight" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </ListView.ItemContainerStyle>
+
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:GameCardItem">
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="12,10"
+                            Opacity="{x:Bind CardOpacity, Mode=OneWay}">
+                        <Grid ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 封面：加载成功显示图片，否则显示首字母色块 -->
+                            <Border Grid.Column="0" Width="52" Height="70" CornerRadius="6"
+                                    Background="{x:Bind MonogramBrush}"
+                                    Visibility="{x:Bind HasNoCover, Mode=OneWay}">
+                                <TextBlock Text="{x:Bind Initials}" FontSize="18" FontWeight="SemiBold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <Border Grid.Column="0" Width="52" Height="70" CornerRadius="6"
+                                    Visibility="{x:Bind HasCover, Mode=OneWay}">
+                                <Image Source="{x:Bind CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
+                            </Border>
+
+                            <!-- 标题 + 能力徽章 -->
+                            <StackPanel Grid.Column="1" Spacing="5" VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind SteamAppIdText}" FontSize="11" Opacity="0.6" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Border CornerRadius="4" Padding="7,2"
+                                            Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                            Visibility="{x:Bind AdaptiveTriggers}">
+                                        <TextBlock loc:Localize.Key="Loc_LegendAdaptive" FontSize="11" />
+                                    </Border>
+                                    <Border CornerRadius="4" Padding="7,2"
+                                            Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                            Visibility="{x:Bind HapticFeedback}">
+                                        <TextBlock loc:Localize.Key="Loc_LegendHaptic" FontSize="11" />
+                                    </Border>
+                                    <Border CornerRadius="4" Padding="7,2"
+                                            Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                            Visibility="{x:Bind HasCustomRemapping}">
+                                        <TextBlock loc:Localize.Key="Loc_LegendRemap" FontSize="11" />
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- 排除 + APEX 配置档绑定 -->
+                            <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <CheckBox IsChecked="{x:Bind IsExcluded, Mode=TwoWay}" MinWidth="0" />
+                                    <TextBlock loc:Localize.Key="Loc_GamesExcludeToggle" FontSize="12"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <ComboBox MinWidth="150"
+                                          SelectedIndex="{x:Bind SelectedApexProfileSlot, Mode=TwoWay}">
+                                    <ComboBoxItem loc:Localize.Key="Loc_ApexProfileKeep" />
+                                    <ComboBoxItem loc:Localize.Key="Loc_ApexProfile1" />
+                                    <ComboBoxItem loc:Localize.Key="Loc_ApexProfile2" />
+                                    <ComboBoxItem loc:Localize.Key="Loc_ApexProfile3" />
+                                    <ComboBoxItem loc:Localize.Key="Loc_ApexProfile4" />
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
     </Grid>
 </Page>

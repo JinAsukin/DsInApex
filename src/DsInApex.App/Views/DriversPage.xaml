@@ -4,16 +4,137 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:loc="using:DsInApex.App.Localization"
+    xmlns:vm="using:DsInApex.App.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="32,24">
-        <StackPanel Spacing="10">
+    <!-- ══════════════════════════════════════════════════════════════════
+         P4 · 驱动管理页
+         上游把驱动逻辑埋在 Inno 安装器与 PowerShell 里，装完就查不到了。
+         这里把它变成随时可查、可按需修复的面板。
+         ⚠️ 检测全程只读；只有「安装/修复」会提权（弹一次 UAC）。
+         ══════════════════════════════════════════════════════════════════ -->
+
+    <Grid Padding="24,20" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ══ 页头 ══ -->
+        <StackPanel Grid.Row="0" Spacing="4">
             <TextBlock loc:Localize.Key="Loc_NavDrivers" FontSize="24" FontWeight="SemiBold" />
             <TextBlock loc:Localize.Key="Loc_PageDriversDesc" FontSize="13" Opacity="0.7" TextWrapping="Wrap" />
-            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
-            <TextBlock loc:Localize.Key="Loc_PlaceholderPending" FontSize="12" Opacity="0.5" />
         </StackPanel>
+
+        <!-- ══ 总览条 ══ -->
+        <Border Grid.Row="1" CornerRadius="8" Padding="16,12"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+            <StackPanel Spacing="8">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="{x:Bind ViewModel.SummaryText, Mode=OneWay}"
+                                   FontSize="16" FontWeight="SemiBold" />
+                        <TextBlock Text="{x:Bind ViewModel.ElevatedText, Mode=OneWay}"
+                                   FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- 检测期间按钮不禁用：RefreshAsync 内部已有 IsScanning 防重入 -->
+                    <Button Grid.Column="1" VerticalAlignment="Center"
+                            loc:Localize.Key="Loc_DriversRefresh"
+                            Command="{x:Bind ViewModel.RefreshCommand}" />
+                </Grid>
+
+                <!-- 重启提示：有驱动已注册但没跑起来时才显示 -->
+                <InfoBar IsOpen="{x:Bind ViewModel.NeedsRestart, Mode=OneWay}"
+                         Severity="Warning"
+                         IsClosable="False"
+                         loc:Localize.Key="Loc_DriversNeedsRestart" />
+
+                <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                           FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <!-- ══ 驱动卡片列表 ══ -->
+        <ListView Grid.Row="2"
+                  ItemsSource="{x:Bind ViewModel.Drivers, Mode=OneWay}"
+                  SelectionMode="None"
+                  IsItemClickEnabled="False">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,0,8" />
+                    <Setter Property="MinHeight" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </ListView.ItemContainerStyle>
+
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:DriverCardItem">
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16,12">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="{x:Bind DisplayName}" FontSize="15" FontWeight="SemiBold" />
+                                    <!-- 状态徽章：就绪绿 / 需处理红（互斥显示） -->
+                                    <Border CornerRadius="4" Padding="8,2" Background="#1F7A3D"
+                                            Visibility="{x:Bind IsHealthy, Mode=OneWay}">
+                                        <TextBlock Text="{x:Bind StateText, Mode=OneWay}"
+                                                   FontSize="11" Foreground="White" />
+                                    </Border>
+                                    <Border CornerRadius="4" Padding="8,2" Background="#8C2B2B"
+                                            Visibility="{x:Bind NeedsAction, Mode=OneWay}">
+                                        <TextBlock Text="{x:Bind StateText, Mode=OneWay}"
+                                                   FontSize="11" Foreground="White" />
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Text="{x:Bind VersionText}" FontSize="12" Opacity="0.75" />
+                                <TextBlock Text="{x:Bind ServicesText}" FontSize="12" Opacity="0.65"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind InstallerText}" FontSize="11" Opacity="0.55"
+                                           TextWrapping="Wrap" />
+
+                                <!-- 可选组件提示（ViGEmBus：缺失不影响使用） -->
+                                <TextBlock loc:Localize.Key="Loc_DriversOptionalHint"
+                                           FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                                           Visibility="{x:Bind IsOptional, Mode=OneWay}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                                <ProgressRing IsActive="{x:Bind IsBusy, Mode=OneWay}"
+                                              Width="20" Height="20"
+                                              Visibility="{x:Bind IsBusy, Mode=OneWay}" />
+                                <!-- ⚠️ 不用 RelativeSource 绑外层 VM：WinUI 3 的 DataTemplate 里拿不到。
+                                     走 Click + Tag，由 code-behind 转交 ViewModel。 -->
+                                <Button Content="{x:Bind ActionText, Mode=OneWay}"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        Visibility="{x:Bind NeedsAction, Mode=OneWay}"
+                                        IsEnabled="{x:Bind CanInstall, Mode=OneWay}"
+                                        Click="OnInstallClick"
+                                        Tag="{x:Bind}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
     </Grid>
 </Page>

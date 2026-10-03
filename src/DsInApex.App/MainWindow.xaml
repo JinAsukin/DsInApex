@@ -21,20 +21,57 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- ══ 系统托盘（P2 验证项：与 NavigationView 共存） ══
+        <!-- ══ 系统托盘（P2 验证项：与 NavigationView 共存；P6 扩展为完整后台控制面） ══
              TaskbarIcon 无可视内容，放在 Grid 里不影响布局。
-             菜单走 ContextFlyout（H.NotifyIcon 2.4.1 无 ContextMenu 属性）。 -->
+             菜单走 ContextFlyout（H.NotifyIcon 2.4.1 无 ContextMenu 属性）。
+             文案由 loc:Localize.Key 负责热切换；含变量/需按状态二选一的项（状态行、恢复项）
+             不走 loc（它没有占位符能力），由 UpdateTrayState() 手工刷。 -->
         <tb:TaskbarIcon x:Name="TrayIcon"
                         ToolTipText="Ds in Apex"
                         IconSource="/Assets/AppIcon.ico"
                         MenuActivation="RightClick"
                         ContextMenuMode="PopupMenu">
             <tb:TaskbarIcon.ContextFlyout>
-                <MenuFlyout>
-                    <MenuFlyoutItem loc:Localize.Key="Loc_TrayOpen" Click="OnTrayOpenClick" />
+                <MenuFlyout Opening="OnTrayMenuOpening">
+                    <!-- 状态行：禁用态，只读展示 -->
+                    <MenuFlyoutItem x:Name="TrayStatusItem" IsEnabled="False" FontWeight="SemiBold" />
                     <MenuFlyoutSeparator />
-                    <MenuFlyoutItem loc:Localize.Key="Loc_TrayLanguage" Click="OnTrayLanguageClick" />
+
+                    <MenuFlyoutItem x:Name="TrayOpenItem" loc:Localize.Key="Loc_TrayOpen"
+                                    Click="OnTrayOpenClick" FontWeight="SemiBold" />
+                    <MenuFlyoutItem x:Name="TrayStartItem" loc:Localize.Key="Loc_BtnStartBridge"
+                                    Click="OnTrayStartBridgeClick" />
+                    <MenuFlyoutItem x:Name="TrayStopItem" loc:Localize.Key="Loc_BtnStopBridge"
+                                    Click="OnTrayStopBridgeClick" />
                     <MenuFlyoutSeparator />
+
+                    <ToggleMenuFlyoutItem x:Name="TrayAutoDetectItem" loc:Localize.Key="Loc_TrayAutoDetect"
+                                          Click="OnTrayAutoDetectClick" />
+                    <ToggleMenuFlyoutItem x:Name="TrayAutoStartItem" loc:Localize.Key="Loc_TrayStartWithWindows"
+                                          Click="OnTrayAutoStartClick" />
+                    <MenuFlyoutSeparator />
+
+                    <!-- P6：把 P5 的两个只读页也挂到托盘，省得为了看一眼诊断先开窗口 -->
+                    <MenuFlyoutItem loc:Localize.Key="Loc_TrayHardwareTest" Click="OnTrayHardwareTestClick" />
+                    <MenuFlyoutItem loc:Localize.Key="Loc_TrayDiagnostics" Click="OnTrayDiagnosticsClick" />
+                    <!-- 仅当发现「上次会话异常遗留」时出现 -->
+                    <MenuFlyoutItem x:Name="TrayRecoveryItem" Click="OnTrayRecoveryClick"
+                                    Visibility="Collapsed" />
+                    <MenuFlyoutSeparator />
+
+                    <MenuFlyoutItem loc:Localize.Key="Loc_TrayCheckUpdates" Click="OnTrayCheckUpdatesClick" />
+                    <MenuFlyoutSeparator />
+
+                    <!-- 语言：两个平铺的互斥项。刻意不用 MenuFlyoutSubItem ——
+                         子菜单在 H.NotifyIcon 的自绘弹窗里层数更深，
+                         而语言本来就只有两个选项，平铺更快更清楚。 -->
+                    <RadioMenuFlyoutItem x:Name="TrayLangZhItem" Text="简体中文" GroupName="TrayLanguage"
+                                         Click="OnTrayLanguageClick" />
+                    <RadioMenuFlyoutItem x:Name="TrayLangEnItem" Text="English" GroupName="TrayLanguage"
+                                         Click="OnTrayLanguageClick" />
+                    <MenuFlyoutSeparator />
+
+                    <MenuFlyoutItem loc:Localize.Key="Loc_TrayPortableInfo" Click="OnTrayPortableInfoClick" />
                     <MenuFlyoutItem loc:Localize.Key="Loc_TrayExit" Click="OnTrayExitClick" />
                 </MenuFlyout>
             </tb:TaskbarIcon.ContextFlyout>

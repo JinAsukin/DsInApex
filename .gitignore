@@ -34,7 +34,11 @@ project.lock.json
 project.fragment.lock.json
 
 # ── C++ / CMake 构建输出 ──
-/build/
+# ⚠️ build\ 下**同时存放打包脚本**（make-portable.ps1），脚本必须入库，
+#    所以这里不能简单粗暴地忽略整个 build\，得开例外。
+/build/*
+!/build/*.ps1
+!/build/*.md
 /out/
 CMakeCache.txt
 CMakeFiles/

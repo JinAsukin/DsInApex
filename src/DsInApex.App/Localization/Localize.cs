@@ -245,6 +245,17 @@ public static class Localize
                 txb.PlaceholderText = text;
                 break;
 
+            // AutoSuggestBox 既不是 TextBox 也不是 ContentControl，
+            // 不单独处理的话占位文案会落进 ToolTip（静默错位）。
+            case AutoSuggestBox asb:
+                asb.PlaceholderText = text;
+                break;
+
+            // InfoBar 同样不是 ContentControl —— 它的正文在 Message 属性上。
+            case InfoBar infoBar:
+                infoBar.Message = text;
+                break;
+
             case PasswordBox pb:
                 pb.PlaceholderText = text;
                 break;
@@ -261,12 +272,25 @@ public static class Localize
                 break;
 
             // 托盘右键菜单：MenuFlyoutItem 不是 ContentControl，文案走 Text
-            case MenuFlyoutItem mfi:
-                mfi.Text = text;
-                break;
-
+            //
+            // ⚠️ P6 踩坑记录：**MenuFlyoutItemBase 上没有 Text 属性**（编译器证实
+            //    CS1061）—— Text 是 MenuFlyoutItem 与 MenuFlyoutSubItem 各自声明的，
+            //    两者只是共用同一个基类。所以只能分别匹配：
+            //    · MenuFlyoutItem      → 普通项 / ToggleMenuFlyoutItem / RadioMenuFlyoutItem
+            //    · MenuFlyoutSubItem   → 「语言 ▸」这类子菜单标题（**不是** MenuFlyoutItem 的子类）
+            //    漏掉 SubItem 的后果是它掉进 default 被塞进 ToolTip：
+            //    菜单里出现一个空白项，编译期毫无提示。
+            //    分隔线继承自同一个基类，先吃掉它，免得被下面逮住。
             case MenuFlyoutSeparator:
                 break;   // 分隔线无文案
+
+            case MenuFlyoutItem menuFlyoutItem:
+                menuFlyoutItem.Text = text;
+                break;
+
+            case MenuFlyoutSubItem menuFlyoutSubItem:
+                menuFlyoutSubItem.Text = text;
+                break;
 
             default:
                 // 兜底：塞进 ToolTip，至少不让文案静默消失
@@ -300,11 +324,15 @@ public static class Localize
                     TextBlock tb => tb.Text,
                     TextBox txb => txb.PlaceholderText,
                     PasswordBox pb => pb.PlaceholderText,
+                    AutoSuggestBox asb => asb.PlaceholderText,
                     // ⚠️ Expander 必须排在 ContentControl **之前** —— 它继承自 ContentControl，
                     // 放在后面会被判为不可达模式（CS8510）。
                     Expander exp => exp.Header?.ToString() ?? "(null)",
                     ContentControl cc => cc.Content?.ToString() ?? "(null)",
-                    MenuFlyoutItem mfi => mfi.Text,
+                    MenuFlyoutSeparator => "(separator)",
+                    // ⚠️ 必须分别列：MenuFlyoutItemBase 上没有 Text（CS1061）
+                    MenuFlyoutItem menuFlyoutItem => menuFlyoutItem.Text,
+                    MenuFlyoutSubItem menuFlyoutSubItem => menuFlyoutSubItem.Text,
                     _ => "(不支持的类型)",
                 };
 

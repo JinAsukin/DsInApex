@@ -54,6 +54,23 @@ public sealed class TraySettings
     /// <summary>主题策略：<c>system</c> / <c>light</c> / <c>dark</c>（P1-7）。</summary>
     public string Theme { get; set; } = "system";
 
+    /// <summary>
+    /// 关闭窗口时隐藏到托盘而不是退出（P6）。
+    ///
+    /// <para>
+    /// 默认 <c>true</c>：桥接需要在后台持续工作，点 X 就把虚拟 DualSense 一起带走
+    /// 是上游 WPF 版从未有过的行为，不该在重构版里悄悄改掉。
+    /// </para>
+    /// </summary>
+    public bool CloseWindowToTray { get; set; } = true;
+
+    /// <summary>启动时静默检查更新（P6）。</summary>
+    public bool CheckUpdatesOnStartup { get; set; } = true;
+
+    // ⚠️ 刻意的设计决定：**开机自启状态不存这里**。
+    //    注册表 Run 键才是唯一真源 —— 若再在 json 里存一份，用户手工删掉注册表项后
+    //    设置页会显示"已开启"而实际没开，这种双真值是最难查的一类 bug。
+
     // ═══════════════ 持久化 ═══════════════
 
     private static readonly JsonSerializerOptions JsonOptions = new()

@@ -12,6 +12,12 @@
     <RootNamespace>DsInApex.App</RootNamespace>
     <!-- 计划 §3.2：可执行文件名为 DsInApex.exe -->
     <AssemblyName>DsInApex</AssemblyName>
+    <!-- 版本号（P6）：更新检查据此与远端比对，也是写进 exe 属性的产品版本。
+         0.7.x = 基于上游引擎 0.6.3 的 WinUI 3 重构线。 -->
+    <Version>0.7.0</Version>
+    <FileVersion>0.7.0.0</FileVersion>
+    <Product>Ds in Apex</Product>
+    <Company>Ds in Apex</Company>
     <ApplicationIcon Condition="Exists('Assets\AppIcon.ico')">Assets\AppIcon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
@@ -39,10 +45,18 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefaultLanguage>zh-CN</DefaultLanguage>
 
-    <!-- ── 发布（P7 再调整） ── -->
+    <!-- ── 发布（P7） ──
+         Trimmed 必须保持 false：WinUI 3 的 XAML 反射 + WinRT projection
+         经不起 IL 裁剪（官方亦不推荐）。体积靠排除可选子系统解决，详见下方
+         「P7 体积精简」注释块。ReadyToRun 保持 false —— 它会把体积再撑大几十 MB，
+         而 DIA 的 UI 是常驻托盘应用，冷启动那一两百毫秒不值得拿体积换。 -->
     <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>
     <PublishSingleFile>false</PublishSingleFile>
+
+    <!-- 便携包产出走 Release；关闭调试符号附属物（.pdb 不随包分发） -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
   </PropertyGroup>
 
   <!-- ═══ 依赖（版本锁定原则：主版本一经确定，中期不升级） ═══ -->
@@ -55,6 +69,27 @@
     <PackageReference Include="WinUIEx" Version="2.9.3" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+  </ItemGroup>
+
+  <!-- ═══ P7 体积精简：切掉元包夹带的、DIA 用不到的可选子系统 ═══
+       `Microsoft.WindowsAppSDK` 2.5.1 是**聚合元包**，除 WinUI 3 基础框架外还顺带引入
+       AI / ML / Search(语义索引) / Widgets / WebView2 等可选子系统；self-contained 部署
+       会把它们的托管与原生资产一并复制进产物。实测冗余：
+         onnxruntime.dll 20.7MB + DirectML.dll 17.8MB + SemanticIndex 3.8MB
+         + Windows.Search 3.5MB + Widgets 2.6MB + WebView2 1.6MB ≈ 50MB
+       DIA 只用 WinUI 3 基础控件 + 托盘 + 资源本地化，完全不碰这些 API。
+
+       ⚠️ 与 README §5.7 那条结论不冲突，别互相类推：
+         · 元包 `Microsoft.WindowsAppSDK` 本身**不能用 ExcludeAssets 去掉**（它承载
+           buildTransitive 的 MSBuild wiring，去掉后 MSIX targets 直接报错）→ 保留原样。
+         · **子包**可以：显式引用 + ExcludeAssets="all" 会覆盖「传递引用」产生的资产复制。
+       版本号必须与「传递解析出的版本」逐字一致，否则 NuGet 会因直接引用而降级/升级该包。 -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.5.5" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" Version="2.5.5" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="2.0.5" ExcludeAssets="all" PrivateAssets="all" />
   </ItemGroup>
 
   <!-- ═══ 项目引用 ═══ -->
@@ -73,6 +108,21 @@
     <Content Include="Assets\Square44x44Logo.targetsize-48_altform-lightunplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+
+    <!-- 驱动安装器（P4）。运行时需能读到来做 SHA-256 完整性校验。
+         ⚠️ 用 None（而非 Content）：PRI 资源索引器会把文件名里的 "-x64"
+         当作资源限定符，报 PRI249 "Invalid qualifier: 0-X64" 警告。
+         SDK 默认已把这些文件收录为 None 项，这里只补一个「复制到输出」的行为。 -->
+    <None Update="Prerequisites\*" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- GPL-3.0 合规文件（P6）：便携包必须随附 LICENSE 与源码获取说明。
+         ⚠️ 这三个文件在仓库根（不在项目目录内），所以用 Include + Link；
+         与 Prerequisites 同理用 None 而不是 Content —— Content 会参与 PRI 索引。 -->
+    <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\NOTICE.md" Link="NOTICE.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\SOURCE_OFFER.md" Link="SOURCE_OFFER.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

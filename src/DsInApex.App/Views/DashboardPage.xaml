@@ -9,11 +9,124 @@
     mc:Ignorable="d">
 
     <Grid Padding="32,24">
-        <StackPanel Spacing="10">
-            <TextBlock loc:Localize.Key="Loc_NavDashboard" FontSize="24" FontWeight="SemiBold" />
-            <TextBlock loc:Localize.Key="Loc_PageDashboardDesc" FontSize="13" Opacity="0.7" TextWrapping="Wrap" />
-            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
-            <TextBlock loc:Localize.Key="Loc_PlaceholderPending" FontSize="12" Opacity="0.5" />
-        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16" MaxWidth="860" HorizontalAlignment="Left">
+
+                <!-- ══ 页头 ══ -->
+                <StackPanel Spacing="6">
+                    <TextBlock loc:Localize.Key="Loc_NavDashboard" FontSize="24" FontWeight="SemiBold" />
+                    <TextBlock loc:Localize.Key="Loc_PageDashboardDesc" FontSize="13" Opacity="0.7" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- ══ 状态卡 ══ -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="20">
+                    <StackPanel Spacing="14">
+
+                        <!-- 状态徽章：激活 / 待机 两套，按会话状态切可见性。
+                             用两套而非改色，是为了让文案本身也走 loc:Localize.Key（随语言热切换）。 -->
+                        <Grid>
+                            <Border CornerRadius="6" Padding="10,3" HorizontalAlignment="Left"
+                                    Background="#1F7A3D"
+                                    Visibility="{x:Bind ViewModel.IsBridgeActive, Mode=OneWay}">
+                                <TextBlock loc:Localize.Key="Loc_StatusBadgeActive"
+                                           FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                            </Border>
+                            <Border CornerRadius="6" Padding="10,3" HorizontalAlignment="Left"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                    Visibility="{x:Bind ViewModel.IsBridgeStandby, Mode=OneWay}">
+                                <TextBlock loc:Localize.Key="Loc_StatusBadgeStandby"
+                                           FontSize="11" FontWeight="SemiBold" />
+                            </Border>
+                        </Grid>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{x:Bind ViewModel.CurrentGameText, Mode=OneWay}"
+                                       FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock Text="{x:Bind ViewModel.ProfileText, Mode=OneWay}"
+                                       FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <!-- 扳机 / 触觉 指示灯：绿点=参与，灰点=关闭（跟随设置页开关） -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border CornerRadius="6" Padding="10,4"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#33D17A"
+                                             Visibility="{x:Bind ViewModel.TriggersEnabled, Mode=OneWay}" />
+                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#7A7A7A"
+                                             Visibility="{x:Bind ViewModel.TriggersDisabled, Mode=OneWay}" />
+                                    <TextBlock loc:Localize.Key="Loc_PillTriggers" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+                            <Border CornerRadius="6" Padding="10,4"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#33D17A"
+                                             Visibility="{x:Bind ViewModel.HapticsEnabled, Mode=OneWay}" />
+                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#7A7A7A"
+                                             Visibility="{x:Bind ViewModel.HapticsDisabled, Mode=OneWay}" />
+                                    <TextBlock loc:Localize.Key="Loc_PillHaptics" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <!-- 详情（标签 + 值 两列） -->
+                        <Grid ColumnSpacing="14" RowSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" loc:Localize.Key="Loc_BridgeState"
+                                       FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.SessionStateText, Mode=OneWay}"
+                                       FontSize="12" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" loc:Localize.Key="Loc_BridgePid"
+                                       FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.ProcessIdText, Mode=OneWay}"
+                                       FontSize="12" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" loc:Localize.Key="Loc_EnginePath"
+                                       FontSize="12" Opacity="0.65" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.EnginePathText, Mode=OneWay}"
+                                       FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        </Grid>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <!-- 快捷操作 -->
+                        <StackPanel Spacing="8">
+                            <TextBlock loc:Localize.Key="Loc_QuickActions" FontSize="12" Opacity="0.65" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button loc:Localize.Key="Loc_BtnStartBridge"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        Command="{x:Bind ViewModel.StartBridgeCommand}"
+                                        IsEnabled="{x:Bind ViewModel.CanStartBridge, Mode=OneWay}" />
+                                <Button loc:Localize.Key="Loc_BtnStopBridge"
+                                        Command="{x:Bind ViewModel.StopBridgeCommand}"
+                                        IsEnabled="{x:Bind ViewModel.CanStopBridge, Mode=OneWay}" />
+                                <Button loc:Localize.Key="Loc_EngineRescan"
+                                        Command="{x:Bind ViewModel.RescanEngineCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- 最近一条消息：引擎到底说了什么，用户能自己看到 -->
+                        <TextBlock Text="{x:Bind ViewModel.LastMessage, Mode=OneWay}"
+                                   FontSize="11" Opacity="0.55" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>
