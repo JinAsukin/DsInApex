@@ -10,8 +10,79 @@
     mc:Ignorable="d"
     Title="Ds in Apex · Spike">
 
-    <!-- WinUI 3 的 Window 没有 Resources 属性（与 WPF 不同），托盘菜单直接内联。 -->
+    <!-- WinUI 3 的 Window 没有 Resources 属性（与 WPF 不同），资源只能挂在根元素上。 -->
     <Grid>
+
+        <!-- ═══ P1 障碍·样板：WPF Trigger → WinUI 3 VisualStateManager ═══
+             这是从上游 MainWindow.xaml 的 ToggleSwitch 模板（L15-48）1:1 改写的。
+             改写规则见 docs/02-P1开工障碍清除报告.md -->
+        <Grid.Resources>
+            <ResourceDictionary>
+                <!-- 上游 18 个颜色资源里，样板只取用到的 4 个 -->
+                <SolidColorBrush x:Key="PlayStationBlue" Color="#0070D1" />
+                <SolidColorBrush x:Key="ControlBackground" Color="#2B2B2B" />
+                <SolidColorBrush x:Key="ControlBorder" Color="#5A5A5A" />
+                <SolidColorBrush x:Key="TextMuted" Color="#8A8A8A" />
+
+                <Style x:Key="DiaToggleSwitch" TargetType="CheckBox">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="CheckBox">
+                                <Grid VerticalAlignment="Center">
+                                    <!-- ① VSM 必须挂在模板根元素的子级（这里是 Grid 内部），
+                                         且状态组顺序 = 优先级：后声明的组覆盖先声明的。 -->
+                                    <VisualStateManager.VisualStateGroups>
+
+                                        <!-- Trigger Property="IsMouseOver" / "IsEnabled" -->
+                                        <VisualStateGroup x:Name="CommonStates">
+                                            <VisualState x:Name="Normal" />
+                                            <VisualState x:Name="PointerOver">
+                                                <VisualState.Setters>
+                                                    <Setter Target="Track.BorderBrush" Value="{ThemeResource PlayStationBlue}" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="Pressed" />
+                                            <VisualState x:Name="Disabled">
+                                                <VisualState.Setters>
+                                                    <Setter Target="Track.Opacity" Value="0.35" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+
+                                        <!-- Trigger Property="IsChecked" Value="True" -->
+                                        <VisualStateGroup x:Name="CheckStates">
+                                            <VisualState x:Name="Checked">
+                                                <VisualState.Setters>
+                                                    <!-- ② WPF: TargetName="Track" Property="Background"
+                                                          WinUI: Target="Track.Background" -->
+                                                    <Setter Target="Track.Background" Value="{ThemeResource PlayStationBlue}" />
+                                                    <Setter Target="Track.BorderBrush" Value="{ThemeResource PlayStationBlue}" />
+                                                    <Setter Target="Thumb.HorizontalAlignment" Value="Right" />
+                                                    <Setter Target="Thumb.Margin" Value="0,0,3,0" />
+                                                    <Setter Target="Thumb.Fill" Value="White" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="Unchecked" />
+                                            <VisualState x:Name="Indeterminate" />
+                                        </VisualStateGroup>
+                                    </VisualStateManager.VisualStateGroups>
+
+                                    <Border x:Name="Track" Width="40" Height="20" CornerRadius="10"
+                                            Background="{ThemeResource ControlBackground}"
+                                            BorderBrush="{ThemeResource ControlBorder}" BorderThickness="1.5">
+                                        <Grid>
+                                            <Ellipse x:Name="Thumb" Width="12" Height="12"
+                                                     HorizontalAlignment="Left" Margin="3,0,0,0"
+                                                     Fill="{ThemeResource TextMuted}" />
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ResourceDictionary>
+        </Grid.Resources>
 
         <!-- ══ S3：系统托盘 ══ -->
         <tb:TaskbarIcon x:Name="TrayIcon"
@@ -185,6 +256,25 @@
                                    Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
                         <TextBlock x:Name="TrayInfoText" FontFamily="Consolas"
                                    FontSize="11" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <!-- ══ P1 障碍 · 样板验证 ══ -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="20,16">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="P1 障碍 · Trigger → VisualStateManager 样板"
+                                   FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock FontSize="12" Opacity="0.7" TextWrapping="Wrap"
+                                   Text="下方开关使用由 WPF Trigger 改写而来的 VSM 模板。勾选/取消时，模板内 Track 与 Thumb 的【实际属性值】应随之变化——这是判定改写是否真的生效的证据。" />
+                        <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                            <CheckBox x:Name="VsToggle" Style="{StaticResource DiaToggleSwitch}" />
+                            <TextBlock x:Name="VsStateText" FontFamily="Consolas" FontSize="12"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock x:Name="VsProbeText" FontFamily="Consolas" FontSize="11"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
 

@@ -27,10 +27,13 @@ public static partial class EngineOutputParser
     [GeneratedRegex(@"^\[(\d+)\]\s+(.+?)\s*$", RegexOptions.Multiline)]
     private static partial Regex EntryRegex();
 
-    [GeneratedRegex(@"VID:PID\s+([0-9A-Fa-f]{4}):([0-9A-Fa-f]{4})")]
+    // ⚠️ 实测（2026-10-03 手柄在位）：引擎实际输出为 `0x04B4:0x2412`，**带 0x 前缀**。
+    // 最初按无前缀写的正则会静默失配，导致 VID/PID 全部解析不出来。
+    // 两种形态都要容忍 —— 上游未来改格式时不至于立刻崩。
+    [GeneratedRegex(@"VID:PID\s+(?:0[xX])?([0-9A-Fa-f]{4}):(?:0[xX])?([0-9A-Fa-f]{4})")]
     private static partial Regex VidPidRegex();
 
-    [GeneratedRegex(@"Usage page\s+(0x[0-9A-Fa-f]+)\s+usage\s+(0x[0-9A-Fa-f]+)")]
+    [GeneratedRegex(@"Usage page\s+(?:0[xX])?([0-9A-Fa-f]+)\s+usage\s+(?:0[xX])?([0-9A-Fa-f]+)")]
     private static partial Regex UsageRegex();
 
     [GeneratedRegex(@"Reports\s+input=(\d+)\s+output=(\d+)\s+bytes")]

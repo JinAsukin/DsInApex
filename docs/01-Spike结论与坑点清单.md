@@ -26,7 +26,7 @@
 | S1 | WinUI 3 项目可构建运行 | 必过 | ✅ **通过** | 窗口句柄 462194，标题 `Ds in Apex · Spike`，Responding=True，无 COMException |
 | S2 | **语言运行时热切换** | 必过 | ✅ **通过** | 13–16 个控件实际属性值随语言切换同步变更，耗时 **0.402 / 0.373 ms**，无需重启 |
 | S3 | 托盘图标可用 | 必过 | ✅ **通过** | `IsCreated=True`；注册表 `HKCU\Control Panel\NotifyIconSettings` 出现本程序记录 |
-| S4 | 拉起 C++ 引擎并解析输出 | 必过 | ⚠️ **部分通过** | 进程调用 ✅ / stdout 捕获 ✅ / 退出码 2 识别 ✅ / 解析降级 ✅；**设备解析待手柄在位补验** |
+| S4 | 拉起 C++ 引擎并解析输出 | 必过 | ✅ **通过** | 手柄在位后成功解析出设备（`Flydigi VADER3` / `04B4:2412` / `usage FFA0:0001` / `reports 32:32`），退出码 0，耗时 54ms。期间抓出并修复了 `0x` 前缀解析 bug —— 详见 `docs/02-P1开工障碍清除报告.md` |
 | S5 | 单实例 + 最小化到托盘 | 期望 | ✅ **通过** | 双实例并发启动，进程计数恒为 **1**；`AppWindow.Closing` 拦截关闭并隐藏 |
 | S6 | FilePicker 可用 | 期望 | ⏳ **待人工验证** | `InitializeWithWindow` 已在代码中就位，需人工点击触发 |
 
@@ -357,7 +357,7 @@ Spike 工程本身即为 P1 的起点，以下三处可直接搬：
 | # | 工作项 | 说明 |
 |---|---|---|
 | 1 | ~~WinUI 3 控件普查~~ | ✅ **本次 Spike 已完成**，结果见坑 1 附表 |
-| 2 | **`Trigger` → `VisualStateManager` 样式重写样板** | 36 处，最高风险项。建议 M1 先做一个样板定工，再排 P2/P3 |
+| 2 | ~~`Trigger` → `VisualStateManager` 样板~~ | ✅ **已完成**，改写规则与实测验证见 `docs/02-P1开工障碍清除报告.md` |
 | 3 | **WindowsAppSDK 子包裁剪** | 从 236MB 压到 ~100MB |
 | 4 | **121 条中英文案全量整理** | 含品牌名从 `ApexSenseBridge` 改为 `Ds in Apex` |
 | 5 | **`tray_settings.json` 旧版迁移** | 读 `%LOCALAPPDATA%\ApexSenseBridge\tray_settings.json` 的 `Language` 字段，兼容 `auto`/`en`/`fr`，新增 `zh-CN` |
@@ -380,8 +380,8 @@ winapp new -t winui-navview -n DsInApex.App -o E:\DsInApex\src\DsInApex.App
 
 | # | 项 | 前置条件 |
 |---|---|---|
-| 1 | S4 真实设备解析 | 手柄连接并在 **DInput 模式**（`VID_04B4&PID_2412` 复合设备 MI_00–MI_03） |
-| 2 | S6 FilePicker 实际弹出 | 人工点击 |
+| 1 | ~~S4 真实设备解析~~ | ✅ **已完成**（2026-10-03，手柄 DInput 模式。结果见 `docs/02-P1开工障碍清除报告.md`） |
+| 2 | S6 FilePicker 实际弹出 | 人工点击（`InitializeWithWindow` 预检已通过） |
 | 3 | 托盘右键菜单实际弹出与响应 | 人工点击（注册表已证明图标存在） |
 | 4 | 中英切换在托盘菜单上的实际观感 | 人工确认 |
 
@@ -416,10 +416,12 @@ set DSINAPEX_ENGINE_PATH=E:\...\ApexSenseBridge.exe
 **方案 A 的可行性风险已经出清**：最要命的"语言热切换"不但跑通，而且性能余量极大（0.4 ms）。
 真正的工期风险从"技术能不能做"转移到了"体力活有多少"，按体量排序：
 
-1. **`Trigger` → `VisualStateManager` 重写（36 处）** —— 结构性改写，最高风险，建议先做样板定工
+1. **`Trigger` → `VisualStateManager` 重写（36 处）** —— ✅ 规则已确定、样板已实测验证
 2. **容器替换**：`DockPanel`(19) + `WrapPanel`(2) → `Grid`
 3. **121 条中英文案全量翻译** + 品牌名 `ApexSenseBridge` → `Ds in Apex`
-4. **WindowsAppSDK 子包裁剪**（236 MB → 目标 ~100 MB）
-5. **`DataGrid` 引入 CommunityToolkit**（13 处）
+4. **`DataGrid` 引入 CommunityToolkit**（13 处）
 
-这五项都应在 P1 开工前评估清楚。
+> 原列的"WindowsAppSDK 子包裁剪"已实测**否决**：元包承担 buildTransitive wiring，
+> 不可替换为子包；`ExcludeAssets` 也无效。改为 P7 安装器压缩解决。
+
+**P1 开工前的技术障碍已全部清除。** 详见 `docs/02-P1开工障碍清除报告.md`。

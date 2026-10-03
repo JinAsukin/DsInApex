@@ -5,6 +5,8 @@ using DsInApex.Spike.Services;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using Windows.ApplicationModel;
 
 namespace DsInApex.Spike;
@@ -19,6 +21,7 @@ public sealed partial class MainWindow : Window
 
     private EngineRunner? _engine;
     private string? _lastEngineSummary;
+    private readonly List<string> _vsHistory = new();
 
     public MainWindow()
     {
@@ -40,6 +43,9 @@ public sealed partial class MainWindow : Window
         _ready = true;
         UpdateRefreshStats();
         WriteProbe("init");
+
+        // 模板应用完成后才能 FindName 到模板内元素
+        VsToggle.Loaded += (_, _) => CaptureVsState("initial");
 
         RunAutoTestIfRequested();
     }
@@ -361,6 +367,72 @@ public sealed partial class MainWindow : Window
 
     // ────────────────────────── 自动化验证 ──────────────────────────
 
+    // ────────────────────────── P1 障碍：VSM 样板验证 ──────────────────────────
+
+    /// <summary>
+    /// 读取改写后的 ControlTemplate 内元素的【实际属性值】。
+    ///
+    /// 为什么必须这样验证：Trigger→VSM 改写最容易出现"编译通过但状态不生效"
+    /// （状态组名字写错、Target 路径写错都会静默失败）。只有看到 Track/Thumb
+    /// 的真实属性值随 CheckStates 变化，才能判定改写真的可用。
+    /// </summary>
+    private void CaptureVsState(string phase)
+    {
+        try
+        {
+            // ⚠️ WinUI 3 的 ControlTemplate 没有 FindName（WPF 有），
+            // 模板内元素只能靠遍历可视化树拿到。这本身也是一个迁移坑点。
+            var track = FindInVisualTree<Border>(VsToggle, "Track");
+            var thumb = FindInVisualTree<Ellipse>(VsToggle, "Thumb");
+
+            if (track is null || thumb is null)
+            {
+                VsProbeText.Text = $"[{phase}] ⚠ 模板内元素未找到（模板可能尚未应用）";
+                return;
+            }
+
+            string block =
+                $"[{phase}] IsChecked={VsToggle.IsChecked}{Environment.NewLine}" +
+                $"    Track.Background      = {BrushToString(track.Background)}{Environment.NewLine}" +
+                $"    Track.BorderBrush     = {BrushToString(track.BorderBrush)}{Environment.NewLine}" +
+                $"    Track.Opacity         = {track.Opacity:F2}{Environment.NewLine}" +
+                $"    Thumb.HorizontalAlign = {thumb.HorizontalAlignment}{Environment.NewLine}" +
+                $"    Thumb.Fill            = {BrushToString(thumb.Fill)}";
+
+            _vsHistory.Add(block);
+            VsProbeText.Text = block;
+            VsStateText.Text = $"IsChecked = {VsToggle.IsChecked}";
+        }
+        catch (Exception ex)
+        {
+            VsProbeText.Text = $"VSM 采集异常: {ex.GetType().Name} - {ex.Message}";
+        }
+    }
+
+    private static string BrushToString(Brush? brush)
+        => brush is SolidColorBrush scb ? scb.Color.ToString() : brush?.GetType().Name ?? "(null)";
+
+    /// <summary>
+    /// 在可视化树中按名称查找元素（WinUI 3 替代 WPF 的 ControlTemplate.FindName）。
+    /// </summary>
+    private static T? FindInVisualTree<T>(DependencyObject root, string name)
+        where T : FrameworkElement
+    {
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, i);
+            if (child is T typed && typed.Name == name)
+            {
+                return typed;
+            }
+
+            T? nested = FindInVisualTree<T>(child, name);
+            if (nested is not null) return nested;
+        }
+        return null;
+    }
+
     /// <summary>
     /// 自动化验证开关：设置环境变量 DSINAPEX_SPIKE_AUTOTEST=1 后，
     /// 应用启动会按时间线自动切换语言，无需人工点击，便于脚本取证。
@@ -387,6 +459,32 @@ public sealed partial class MainWindow : Window
             {
                 await RunEngineCommandAsync("list", 20_000);
             }
+
+            // ── VSM 样板验证：切换 CheckBox，观察模板内元素的【实际属性值】是否随之变化 ──
+            VsToggle.IsChecked = true;
+            await Task.Delay(400);
+            CaptureVsState("checked");
+
+            VsToggle.IsChecked = false;
+            await Task.Delay(400);
+            CaptureVsState("unchecked");
+
+            // ── S6 预检：unpackaged 模式下 FilePicker 的成败关键在于
+            //    InitializeWithWindow 能否把 picker 关联到窗口句柄。
+            //    这里只验证关联本身不抛异常，实际弹窗仍需人工点击。 ──
+            try
+            {
+                var probePicker = new Windows.Storage.Pickers.FileOpenPicker();
+                probePicker.FileTypeFilter.Add("*");
+                IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                WinRT.Interop.InitializeWithWindow.Initialize(probePicker, hwnd);
+                PickerResultText.Text = "✔ FilePicker InitializeWithWindow 成功（未实际弹出，需人工点击按钮验证）";
+            }
+            catch (Exception ex)
+            {
+                PickerResultText.Text = $"❌ FilePicker 关联失败: {ex.GetType().Name} - {ex.Message}";
+            }
+            WriteProbe("picker-precheck");
 
             await Task.Delay(500);
             WriteProbe("autotest-complete");
@@ -421,6 +519,21 @@ public sealed partial class MainWindow : Window
             {
                 sb.AppendLine("--- engine ---");
                 sb.AppendLine(_lastEngineSummary);
+            }
+
+            if (_vsHistory.Count > 0)
+            {
+                sb.AppendLine("--- vsm (Trigger → VisualStateManager 样板) ---");
+                foreach (string block in _vsHistory)
+                {
+                    sb.AppendLine(block);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(PickerResultText.Text))
+            {
+                sb.AppendLine("--- picker (S6) ---");
+                sb.AppendLine(PickerResultText.Text);
             }
 
             string temp = System.IO.Path.GetTempPath();

@@ -32,6 +32,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- ⚠️ 体积优化的两种方案均已实测否决，元包保持原样不动：
+         方案 A（只引 WinUI 子包）→ MSBuild targets 导入链断裂
+                （元包不只聚合，还承载 buildTransitive 的 wiring，如 CustomBeforeMicrosoftCommonTargets）
+         方案 B（ExcludeAssets 排除 AI/ML/Search/Widgets）→ 无效
+                （同一子包被「元包依赖」与「显式引用」两条路径引入，ExcludeAssets 只作用于显式那条）
+         真相：体积大头是 self-contained 的 .NET 运行时 + WinUI native 组件，
+               AI/ML 组件合计仅约 22MB（9%）。为 9% 冒运行时缺文件的风险不划算。
+         结论：不在构建期裁剪，交给 P7 安装器 LZMA 压缩。详见 docs/02-P1开工障碍清除报告.md -->
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
