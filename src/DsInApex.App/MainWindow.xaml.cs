@@ -1,4 +1,5 @@
 using DsInApex.App.Diagnostics;
+using DsInApex.App.Localization;
 using DsInApex.App.Models;
 using DsInApex.App.Services;
 using DsInApex.App.ViewModels;
@@ -723,7 +724,136 @@ public sealed partial class MainWindow : Window
             totalSections++;
             if (p6Ok) passedSections++;
 
-            // ══════════ 11. 设置读写往返 ══════════
+            // ══════════ 11. P8 · 本地化覆盖审计 ══════════
+            //   目的：把「8 页面全量走查 + 中英文切换全页面验证」里
+            //   **能被机器判定**的部分从人肉清单里摘出来。
+            //
+            //   ⚠️ 三条腿的能力边界必须说清楚：
+            //   · 字典腿  —— 始终可跑（字典编译进程序集，不依赖外部文件）
+            //   · 源码腿  —— 便携包里没有 XAML 源码（只有 *.xbf），会自动降级为「跳过」
+            //   · 控件树腿 —— 运行时读控件真实值，是唯一能证明「文案真的落到界面上」的一条
+            //   排版错位 / 控件重叠仍然只能人眼看，本段不假装能查。
+            SelfTest.LogHeader("P8 · 本地化覆盖审计");
+
+            // ── 腿 1：字典结构（键集合一致 / 占位符一致 / 双语同文） ──
+            (bool dictPassed, IReadOnlyList<LocalizationAuditFinding> dictFindings,
+                IReadOnlyList<string> dictNotes) = LocalizationAuditService.AuditDictionary();
+
+            foreach (string note in dictNotes)
+            {
+                SelfTest.Log("  " + note);
+            }
+
+            foreach (LocalizationAuditFinding finding in dictFindings)
+            {
+                SelfTest.Log($"    {(finding.IsBlocking() ? "✗" : "－")} {finding.Key,-34} {finding.Detail}");
+            }
+
+            // ── 腿 2：XAML 源码扫描（发布包内自动跳过） ──
+            // 源码在开发树里；便携包只有 .xbf —— 这是预期，不是缺陷
+            string? xamlSourceRoot = ResolveXamlSourceDirectory();
+            (bool sourceAvailable, IReadOnlyList<LocalizationAuditFinding> sourceFindings,
+                bool sourcePassed, IReadOnlyList<string> sourceNotes) =
+                LocalizationAuditService.AuditXamlSources(xamlSourceRoot ?? "(未找到源码树)");
+
+            foreach (string note in sourceNotes)
+            {
+                SelfTest.Log("  " + note);
+            }
+
+            foreach (LocalizationAuditFinding finding in sourceFindings.Take(20))
+            {
+                SelfTest.Log($"    {(finding.IsBlocking() ? "✗" : "－")} {finding.Location}{finding.Key,-24} {finding.Detail}");
+            }
+
+            if (sourceFindings.Count > 20)
+            {
+                SelfTest.Log($"    …（另有 {sourceFindings.Count - 20} 条未逐条列出）");
+            }
+
+            // ── 腿 3：控件树实测（中 → 英 → 中，逐页采样真实属性值） ──
+            //
+            // 采样必须在语言生效之后做，且要在【每一页】上做：
+            // 只在仪表盘采样会漏掉「只有 SettingsPage 才用到的控件类型」这类问题
+            // —— 而 P6 那两次坑恰恰都在别的页面上。
+            List<LocalizationAuditService.AppliedSample> samples = new();
+            int pagesSampled = 0;
+
+            foreach (NavigationItem target in ViewModel.NavigationItems)
+            {
+                NavigationViewItem? menuItem = NavView.MenuItems
+                    .OfType<NavigationViewItem>()
+                    .FirstOrDefault(m => (m.Tag as string) == target.Tag);
+
+                if (menuItem is null) continue;
+
+                NavView.SelectedItem = menuItem;
+                await Task.Delay(220);
+                pagesSampled++;
+
+                // 中文采样
+                LocalizationService.Shared.SetLanguage(Langs.ZhCN);
+                await Task.Delay(180);
+                UpdateTrayState();
+                var zhSamples = Localize.SampleApplied();
+
+                // 英文采样
+                LocalizationService.Shared.SetLanguage(Langs.En);
+                await Task.Delay(180);
+                UpdateTrayState();
+                var enSamples = Localize.SampleApplied();
+
+                // 按 (键, 控件类型) 配对 —— 同一个键可能被多个控件类型注册
+                var enIndex = enSamples
+                    .GroupBy(s => (s.Key, s.ControlType))
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                foreach ((string key, string type, string actual) in zhSamples)
+                {
+                    string enActual = enIndex.TryGetValue((key, type), out var hit)
+                        ? hit.Actual
+                        : "(英文采样缺失)";
+
+                    samples.Add(new LocalizationAuditService.AppliedSample(key, type, actual, enActual));
+                }
+            }
+
+            // 回到中文并恢复界面选中态
+            LocalizationService.Shared.SetLanguage(Langs.ZhCN);
+            await Task.Delay(200);
+            UpdateTrayState();
+            SyncLanguageSelection();
+
+            SelfTest.Log($"  遍历页面数      = {pagesSampled} / {ViewModel.NavigationItems.Count}");
+            SelfTest.Log($"  已注册 loc 元素 = {Localize.RegisteredCount}（累计刷新 {Localize.RefreshCount} 次，" +
+                         $"最近一次 {Localize.LastRefreshMs:F2} ms）");
+
+            (bool samplesPassed, IReadOnlyList<string> sampleLines) =
+                LocalizationAuditService.VerifySamples(samples);
+
+            foreach (string line in sampleLines)
+            {
+                SelfTest.Log(line);
+            }
+
+            SelfTest.Log($"  双语同文明细（可能漏译，也可能刻意保留）：");
+            foreach (string line in sampleLines.Where(l => l.Contains("双语同文", StringComparison.Ordinal)))
+            {
+                SelfTest.Log("    " + line);
+            }
+
+            // 判定：字典腿必须过；源码腿若可跑也必须过；控件树腿必须过
+            // ⚠️ 只读目录场景下这一段照样全跑 —— 它不写任何东西
+            bool p8L10nOk = dictPassed && samplesPassed && (!sourceAvailable || sourcePassed);
+            SelfTest.Log($"  字典腿          = {(dictPassed ? "通过" : "未通过")}");
+            SelfTest.Log($"  源码腿          = {(sourceAvailable ? (sourcePassed ? "通过" : "未通过") : "跳过（无 XAML 源码，预期）")}");
+            SelfTest.Log($"  控件树腿        = {(samplesPassed ? "通过" : "未通过")}");
+            SelfTest.Log($"  P8 本地化判定   = {(p8L10nOk ? "通过" : "未通过")}");
+
+            totalSections++;
+            if (p8L10nOk) passedSections++;
+
+            // ══════════ 12. 设置读写往返 ══════════
             //   必须放最后：这一步会临时改写 tray_settings.json 后原样恢复，
             //   若之后还有别的写盘动作，恢复就白做了。
             SelfTest.LogHeader("设置读写往返");
@@ -754,6 +884,36 @@ public sealed partial class MainWindow : Window
             .FirstOrDefault(m => (m.Tag as string) == tag);
 
         return item?.Content?.ToString() ?? "(未找到)";
+    }
+
+    /// <summary>
+    /// 定位 XAML 源码目录（供 P8 本地化审计的源码腿使用）。
+    ///
+    /// <para>
+    /// ⚠️ <b>便携包里必然返回 null</b> —— 发布产物只有编译后的 <c>*.xbf</c>，不含 XAML 源码。
+    /// 这是预期行为，审计会自动降级为「跳过」并在日志里写明原因，<b>不假装跑过</b>。
+    /// </para>
+    ///
+    /// <para>
+    /// 开发树里的相对关系是：<c>bin\...\</c> 上溯到项目目录，
+    /// 再上溯到仓库根，源码在 <c>src\DsInApex.App\</c> 下。
+    /// 用逐级上溯而不是写死路径，是为了同时兼容 Debug / Release 与 x64 / ARM64 各种组合。
+    /// </para>
+    /// </summary>
+    private static string? ResolveXamlSourceDirectory()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        for (int depth = 0; depth < 8 && directory is not null; depth++, directory = directory.Parent)
+        {
+            string candidate = Path.Combine(directory.FullName, "src", "DsInApex.App", "Views");
+            if (Directory.Exists(candidate))
+            {
+                return directory.FullName;   // 返回仓库根，让调用方按需拼路径
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

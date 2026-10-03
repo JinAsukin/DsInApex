@@ -252,6 +252,8 @@ public static class Localize
                 break;
 
             // InfoBar 同样不是 ContentControl —— 它的正文在 Message 属性上。
+            // ⚠️ P8 教训：**ReadActual 的读值 switch 必须与此处的写值 switch 同构**，
+            // 漏一个 case，审计就会把健康的控件误报成「文案被丢弃」。
             case InfoBar infoBar:
                 infoBar.Message = text;
                 break;
@@ -302,6 +304,67 @@ public static class Localize
     // ═══════════════ 诊断（供探针/自检使用） ═══════════════
 
     /// <summary>
+    /// 读取单个已注册元素的【实际属性值】。
+    ///
+    /// <para>
+    /// 取不到时返回哨兵值 <c>(不支持的类型)</c> / <c>(null)</c> / <c>(separator)</c>。
+    /// 这些哨兵是有意设计的：<b>它们本身就是「文案没能落到界面上」的证据</b>，
+    /// P8 的本地化审计腿 3 正是靠它们把「控件类型不被 <see cref="ApplyAuto"/> 支持」
+    /// 这类静默失败抓出来（参见 <c>LocalizationAuditService.VerifySamples</c>）。
+    /// </para>
+    /// </summary>
+    public static string ReadActual(DependencyObject target) => target switch
+    {
+        TextBlock tb => tb.Text,
+        TextBox txb => txb.PlaceholderText,
+        PasswordBox pb => pb.PlaceholderText,
+        AutoSuggestBox asb => asb.PlaceholderText,
+        // ⚠️ InfoBar 不是 ContentControl —— P8 审计上线首日抓出的盲区：
+        // ApplyAuto 一直有 InfoBar→Message 分支（文案设置是好的），
+        // 但本方法没有对应 case，导致审计把健康的 InfoBar 误报成
+        // 「文案被丢弃」13 处。**读值 switch 必须与 ApplyAuto 的写值 switch 同构**。
+        InfoBar infoBar => infoBar.Message,
+        // ⚠️ Expander 必须排在 ContentControl **之前** —— 它继承自 ContentControl，
+        // 放在后面会被判为不可达模式（CS8510）。
+        Expander exp => exp.Header?.ToString() ?? "(null)",
+        ContentControl cc => cc.Content?.ToString() ?? "(null)",
+        MenuFlyoutSeparator => "(separator)",
+        // ⚠️ 必须分别列：MenuFlyoutItemBase 上没有 Text（CS1061）
+        MenuFlyoutItem menuFlyoutItem => menuFlyoutItem.Text,
+        MenuFlyoutSubItem menuFlyoutSubItem => menuFlyoutSubItem.Text,
+        _ => "(不支持的类型)",
+    };
+
+    /// <summary>
+    /// 对已注册的全部元素采样实际属性值（键 → 控件类型 → 实际值）。
+    ///
+    /// <para>
+    /// 必须在<b>目标语言已经生效之后</b>调用 —— 采样读的是控件当前值，
+    /// 而不是字典返回值。这是 P1 自检段就确立的原则：
+    /// <b>查字典永远返回正确值，只有读控件真实属性才能证明界面真的渲染对了。</b>
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<(string Key, string ControlType, string Actual)> SampleApplied()
+    {
+        var result = new List<(string, string, string)>();
+
+        lock (SyncRoot)
+        {
+            foreach (Entry entry in Registry)
+            {
+                if (!entry.Target.TryGetTarget(out DependencyObject? target))
+                {
+                    continue;   // 已回收的元素跳过，不污染采样
+                }
+
+                result.Add((entry.Key, target.GetType().Name, ReadActual(target)));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// 读取注册元素的【实际属性值】而非字典返回值。
     /// 这是验证本地化真的落到控件上、而不是只查了字典的关键手段。
     /// </summary>
@@ -319,23 +382,7 @@ public static class Localize
                     continue;
                 }
 
-                string actual = target switch
-                {
-                    TextBlock tb => tb.Text,
-                    TextBox txb => txb.PlaceholderText,
-                    PasswordBox pb => pb.PlaceholderText,
-                    AutoSuggestBox asb => asb.PlaceholderText,
-                    // ⚠️ Expander 必须排在 ContentControl **之前** —— 它继承自 ContentControl，
-                    // 放在后面会被判为不可达模式（CS8510）。
-                    Expander exp => exp.Header?.ToString() ?? "(null)",
-                    ContentControl cc => cc.Content?.ToString() ?? "(null)",
-                    MenuFlyoutSeparator => "(separator)",
-                    // ⚠️ 必须分别列：MenuFlyoutItemBase 上没有 Text（CS1061）
-                    MenuFlyoutItem menuFlyoutItem => menuFlyoutItem.Text,
-                    MenuFlyoutSubItem menuFlyoutSubItem => menuFlyoutSubItem.Text,
-                    _ => "(不支持的类型)",
-                };
-
+                string actual = ReadActual(target);
                 result.Add($"{target.GetType().Name,-20} {entry.Key,-32} => {actual}");
             }
         }
