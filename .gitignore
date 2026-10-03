@@ -38,7 +38,6 @@ project.fragment.lock.json
 #    所以这里不能简单粗暴地忽略整个 build\，得开例外。
 /build/*
 !/build/*.ps1
-!/build/*.md
 /out/
 CMakeCache.txt
 CMakeFiles/
