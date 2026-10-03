@@ -1,0 +1,346 @@
+namespace DsInApex.Core.Localization;
+
+/// <summary>
+/// 全部界面文案字典。
+///
+/// ⚠️ 重要背景（2026-10-03 Spike 实测）：
+/// 上游 <c>ApexSenseBridgeTray/Common/LocalizationManager.cs</c> **只有 English 与 French 两种语言，
+/// 共 121 个唯一键，没有任何中文**。因此中文侧是**全新翻译**，不是"填第三份字典"。
+///
+/// 英文侧的改动：品牌名 <c>ApexSenseBridge</c> → <c>Ds in Apex</c>（逐条核对替换）。
+///
+/// 约定：
+/// - 键名前缀 <c>Loc_</c>（沿用上游命名，便于与上游 XAML 对照）
+/// - 占位符用 <c>{0}</c> / <c>{1}</c>，与 <c>LocalizationManager.Format()</c> 配套
+/// - 含换行的文案在 C# 里用 <c>\n</c>，不要写成真实换行
+/// </summary>
+public static class Strings
+{
+    // ═══════════════════════════════════════════════════════════════
+    //  简体中文
+    // ═══════════════════════════════════════════════════════════════
+    public static readonly IReadOnlyDictionary<string, string> ZhCN =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            // ── General & App ──
+            ["Loc_AppName"]              = "Ds in Apex",
+            ["Loc_AppSubtitle"]          = "DualSense \u2192 飞智 APEX 4 / APEX 5 桥接",
+            ["Loc_AlreadyRunning"]       = "Ds in Apex 已在系统托盘中运行。",
+            ["Loc_StartupError"]         = "启动错误：",
+            ["Loc_Close"]                = "关闭",
+            ["Loc_BtnClose"]             = "关闭",
+            ["Loc_Hide"]                 = "隐藏",
+            ["Loc_Cancel"]               = "取消",
+            ["Loc_Warning"]              = "警告",
+            ["Loc_Confirm"]              = "确定",
+
+            // ── Tray & Notifications ──
+            ["Loc_TrayStatusStandby"]    = "Ds in Apex：待机",
+            ["Loc_TrayStatusActive"]     = "Ds in Apex：{0}",
+            ["Loc_TrayTooltipStandby"]   = "Ds in Apex - 待机",
+            ["Loc_TrayOpen"]             = "打开界面...",
+            ["Loc_TrayAutoDetect"]       = "自动检测",
+            ["Loc_TrayCheckUpdates"]     = "检查更新...",
+            ["Loc_TrayControlPanel"]     = "控制面板...",
+            ["Loc_TrayLanguage"]         = "语言",
+            ["Loc_TrayExit"]             = "退出",
+            ["Loc_NotificationActivated"] = "Ds in Apex 已激活",
+            ["Loc_NotificationGameProfile"] = "{0}\n配置档：{1}",
+            ["Loc_NotificationGame"]     = "游戏",
+            ["Loc_NotificationProfileStandard"] = "标准",
+            ["Loc_NotificationWarning"]  = "Ds in Apex \u2014 警告",
+
+            // ── Status Card ──
+            ["Loc_StatusBadgeStandby"]   = "\u25cf 待机",
+            ["Loc_StatusBadgeActive"]    = "\u25cf 桥接已激活",
+            ["Loc_NoActiveGame"]         = "无活动游戏",
+            ["Loc_WaitingHint"]          = "等待兼容游戏启动...",
+            ["Loc_ProfileStandard"]      = "标准",
+            ["Loc_ProfileRemapping"]     = "重映射已启用",
+            ["Loc_PillTriggers"]         = "扳机",
+            ["Loc_PillHaptics"]          = "触觉",
+            ["Loc_BtnExcludeCurrent"]    = "排除此游戏",
+            ["Loc_MsgExcluded"]          = "\u201c{0}\u201d 已从自动检测中排除。",
+            ["Loc_ManualBridgeGameTitle"] = "强制手动桥接",
+
+            // ── Auto Detect Section ──
+            ["Loc_SectionAutoDetect"]    = "自动检测",
+            ["Loc_EnableDetection"]      = "启用检测",
+            ["Loc_EnableDetectionHint"]  = "兼容游戏启动时自动激活桥接",
+            ["Loc_LaunchCriteria"]       = "仅在以下情况启动桥接：",
+            ["Loc_CriteriaAdaptive"]     = "支持自适应扳机的游戏",
+            ["Loc_CriteriaHaptic"]       = "支持触觉反馈的游戏",
+
+            // ── Configuration Section ──
+            ["Loc_SectionConfig"]        = "配置",
+            ["Loc_Notifications"]        = "通知",
+            ["Loc_NotificationsHint"]    = "桥接激活时显示 Windows 通知",
+            ["Loc_ManualBridge"]         = "强制持续激活",
+            ["Loc_ManualBridgeHint"]     = "无需等待游戏，持续保持桥接激活",
+            ["Loc_Language"]             = "语言",
+            ["Loc_LanguageHint"]         = "界面显示语言",
+            ["Loc_SoftwareUpdate"]       = "软件更新",
+            ["Loc_BtnCheck"]             = "检查",
+
+            // ── Update Banner ──
+            ["Loc_UpdateBannerTitle"]    = "有可用更新！",
+            ["Loc_UpdateBannerSubtitle"] = "新版本已准备好下载",
+            ["Loc_BtnDownload"]          = "下载",
+            ["Loc_UpdateAvailableNotification"] = "有可用更新",
+            ["Loc_UpdateAvailableBody"]  = "Ds in Apex v{0} 已发布。",
+            ["Loc_UpdateDialogTitle"]    = "Ds in Apex \u2014 更新",
+            ["Loc_UpdateDialogAvailableTitle"] = "Ds in Apex \u2014 有可用更新",
+            ["Loc_UpdatePrompt"]         = "Ds in Apex 有新版本可用！\n\n当前版本：v{0}\n最新版本：v{1}\n\n是否立即下载？",
+            ["Loc_UpdateUpToDate"]       = "Ds in Apex 已是最新版本（v{0}）。",
+            ["Loc_UpdateError"]          = "检查更新时出错：",
+            ["Loc_UpdateCheckUnavailable"] = "当前无法检查更新。\n请检查网络连接。",
+
+            // ── Database Section ──
+            ["Loc_DatabaseTitle"]        = "PCGamingWiki 数据库",
+            ["Loc_CertifiedGamesSingular"] = "{0} 款认证游戏",
+            ["Loc_CertifiedGamesPlural"] = "{0} 款认证游戏",
+            ["Loc_BtnGameList"]          = "游戏列表",
+            ["Loc_BtnLearnedExecutables"] = "已学习",
+            ["Loc_BtnSync"]              = "同步",
+            ["Loc_Syncing"]              = "正在同步...",
+            ["Loc_SyncSuccess"]          = "更新成功！\n{0} {1}。",
+            ["Loc_SyncSuccessGamesSingular"] = "款兼容游戏已载入",
+            ["Loc_SyncSuccessGamesPlural"] = "款兼容游戏已载入",
+            ["Loc_SyncFailed"]           = "无法下载最新列表。\n请检查网络连接。",
+            ["Loc_LearnedWindowTitle"]   = "已学习的可执行文件",
+            ["Loc_LearnedWindowHint"]    = "当游戏进程稳定保持 30 秒后完成验证，强制手动桥接期间的被动识别同样计入。导出内容永不含本地路径。",
+            ["Loc_LearnedGame"]          = "游戏",
+            ["Loc_LearnedExecutable"]    = "可执行文件",
+            ["Loc_LearnedMethod"]        = "检测方式",
+            ["Loc_LearnedSessions"]      = "会话数",
+            ["Loc_LearnedLastSeen"]      = "最近出现",
+            ["Loc_LearnedEmpty"]         = "尚未学习到任何可执行文件。",
+            ["Loc_LearnedCountSingular"] = "已学习 {0} 个可执行文件",
+            ["Loc_LearnedCountPlural"]   = "已学习 {0} 个可执行文件",
+            ["Loc_LearningPendingSingular"] = "{0} 项验证进行中",
+            ["Loc_LearningPendingPlural"] = "{0} 项验证进行中",
+            ["Loc_BtnSelectAll"]         = "全选",
+            ["Loc_BtnDeleteLearned"]     = "删除",
+            ["Loc_BtnExportLearned"]     = "导出",
+            ["Loc_LearnedDeleteConfirm"] = "删除选中的已学习关联（{0} 项）？",
+            ["Loc_LearnedExportSuccess"] = "所选关联已导出，不含本地路径。",
+            ["Loc_LearnedExportFailed"]  = "导出失败：{0}",
+
+            // ── Footer ──
+            ["Loc_FooterStatus"]         = "Ds in Apex 正在后台运行",
+            ["Loc_BtnHide"]              = "隐藏",
+
+            // ── Game List Window ──
+            ["Loc_GameListTitle"]        = "Ds in Apex \u2014 兼容游戏",
+            ["Loc_GameListSubtitle"]     = "浏览认证游戏并管理自动排除项",
+            ["Loc_SearchPlaceholder"]    = "搜索游戏...",
+            ["Loc_TabAll"]               = "全部",
+            ["Loc_TabTriggers"]          = "自适应扳机",
+            ["Loc_TabHaptics"]           = "触觉反馈",
+            ["Loc_TabExcluded"]          = "已排除",
+            ["Loc_GamesDisplayedSingular"] = "已显示 {0} 款游戏",
+            ["Loc_GamesDisplayedPlural"] = "已显示 {0} 款游戏",
+            ["Loc_GamesExcludedSingular"] = "已排除 {0} 款",
+            ["Loc_GamesExcludedPlural"]  = "已排除 {0} 款",
+            ["Loc_PillAdaptive"]         = "自适应扳机",
+            ["Loc_PillHaptic"]           = "触觉反馈",
+            ["Loc_PillTouchpad"]         = "触摸板重映射",
+            ["Loc_ApexProfile"]          = "APEX 配置档",
+            ["Loc_ApexProfileKeep"]      = "保持当前",
+            ["Loc_ApexProfileNumber"]    = "配置档 {0}",
+            ["Loc_ApexProfileHint"]      = "游戏运行期间临时切换到该板载配置档，退出后恢复原配置档。",
+            ["Loc_StateIncluded"]        = "已包含",
+            ["Loc_StateExcluded"]        = "已排除",
+            ["Loc_ExclusionsSavedHint"]  = "排除项与游戏配置档会自动保存。",
+            ["Loc_NavCertifiedGames"]    = "认证游戏",
+            ["NavLearnedExecutables"]    = "已学习的可执行文件",
+            ["Loc_NavLearnedExecutables"] = "已学习的可执行文件",
+            ["Loc_LearnedSubtitle"]      = "本机与兼容游戏关联的可执行文件",
+            ["Loc_LearnedSearchPlaceholder"] = "搜索可执行文件或游戏...",
+            ["Loc_LearnedEmptySubtitle"] = "当游戏以稳定会话运行时，其关联会出现在这里以便下次秒启动。",
+            ["Loc_LearnedEmptyPendingSingular"] = "检测到一款游戏。请继续游玩，正在验证其可执行文件。",
+            ["Loc_LearnedEmptyPendingPlural"] = "检测到 {0} 个游戏进程。请继续游玩，正在验证它们的可执行文件。",
+            ["Loc_BtnDeleteSingle"]      = "删除",
+
+            // ── 导航（DIA 新增，P1 八页面） ──
+            ["Loc_NavDashboard"]         = "仪表盘",
+            ["Loc_NavGameLibrary"]       = "游戏库",
+            ["Loc_NavLearned"]           = "学习记录",
+            ["Loc_NavDrivers"]           = "驱动管理",
+            ["Loc_NavHardwareTest"]      = "硬件测试",
+            ["Loc_NavDiagnostics"]       = "诊断",
+            ["Loc_NavSettings"]          = "设置",
+            ["Loc_NavAbout"]             = "关于",
+
+            // ── 页面占位副标题（P1 空壳用，P2+ 逐步替换为真实内容） ──
+            ["Loc_PageDashboardDesc"]    = "桥接状态、当前游戏与快捷操作",
+            ["Loc_PageGameLibraryDesc"]  = "浏览认证游戏并管理排除项与配置档绑定",
+            ["Loc_PageLearnedDesc"]      = "已识别的可执行文件与其会话记录",
+            ["Loc_PageDriversDesc"]      = "USBip / HidHide / ViGEmBus 驱动状态与安装",
+            ["Loc_PageHardwareDesc"]     = "设备识别、扳机与震动测试、输入监视",
+            ["Loc_PageDiagnosticsDesc"]  = "一键收集诊断信息并导出报告",
+            ["Loc_PageSettingsDesc"]     = "检测策略、通知、语言与更新",
+            ["Loc_PageAboutDesc"]        = "版本信息、开源许可与项目说明",
+
+            // ── 占位提示 ──
+            ["Loc_PlaceholderPending"]   = "此页面将在后续阶段实现。",
+        };
+
+    // ═══════════════════════════════════════════════════════════════
+    //  English · 品牌名已从 ApexSenseBridge 替换为 Ds in Apex
+    // ═══════════════════════════════════════════════════════════════
+    public static readonly IReadOnlyDictionary<string, string> En =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Loc_AppName"]              = "Ds in Apex",
+            ["Loc_AppSubtitle"]          = "DualSense \u2192 Flydigi APEX 4 / APEX 5 Bridge",
+            ["Loc_AlreadyRunning"]       = "Ds in Apex is already running in the system tray.",
+            ["Loc_StartupError"]         = "Startup error: ",
+            ["Loc_Close"]                = "Close",
+            ["Loc_BtnClose"]             = "Close",
+            ["Loc_Hide"]                 = "Hide",
+            ["Loc_Cancel"]               = "Cancel",
+            ["Loc_Warning"]              = "Warning",
+            ["Loc_Confirm"]              = "OK",
+
+            ["Loc_TrayStatusStandby"]    = "Ds in Apex: Standby",
+            ["Loc_TrayStatusActive"]     = "Ds in Apex: {0}",
+            ["Loc_TrayTooltipStandby"]   = "Ds in Apex - Standby",
+            ["Loc_TrayOpen"]             = "Open Interface...",
+            ["Loc_TrayAutoDetect"]       = "Automatic Detection",
+            ["Loc_TrayCheckUpdates"]     = "Check for Updates...",
+            ["Loc_TrayControlPanel"]     = "Control Panel...",
+            ["Loc_TrayLanguage"]         = "Language",
+            ["Loc_TrayExit"]             = "Exit",
+            ["Loc_NotificationActivated"] = "Ds in Apex activated",
+            ["Loc_NotificationGameProfile"] = "{0}\nProfile: {1}",
+            ["Loc_NotificationGame"]     = "Game",
+            ["Loc_NotificationProfileStandard"] = "Standard",
+            ["Loc_NotificationWarning"]  = "Ds in Apex \u2014 Warning",
+
+            ["Loc_StatusBadgeStandby"]   = "\u25cf Standby",
+            ["Loc_StatusBadgeActive"]    = "\u25cf Bridge active",
+            ["Loc_NoActiveGame"]         = "No active game",
+            ["Loc_WaitingHint"]          = "Waiting for a compatible game...",
+            ["Loc_ProfileStandard"]      = "Standard",
+            ["Loc_ProfileRemapping"]     = "Remapping active",
+            ["Loc_PillTriggers"]         = "Triggers",
+            ["Loc_PillHaptics"]          = "Haptics",
+            ["Loc_BtnExcludeCurrent"]    = "Exclude this game",
+            ["Loc_MsgExcluded"]          = "\u201c{0}\u201d has been excluded from automatic detection.",
+            ["Loc_ManualBridgeGameTitle"] = "Forced manual bridge",
+
+            ["Loc_SectionAutoDetect"]    = "Automatic Detection",
+            ["Loc_EnableDetection"]      = "Enable detection",
+            ["Loc_EnableDetectionHint"]  = "Activates the bridge when a compatible game is launched",
+            ["Loc_LaunchCriteria"]       = "Launch the bridge only for:",
+            ["Loc_CriteriaAdaptive"]     = "Games with adaptive triggers",
+            ["Loc_CriteriaHaptic"]       = "Games with haptic feedback",
+
+            ["Loc_SectionConfig"]        = "Configuration",
+            ["Loc_Notifications"]        = "Notifications",
+            ["Loc_NotificationsHint"]    = "Windows notification when the bridge is activated",
+            ["Loc_ManualBridge"]         = "Force continuous activation",
+            ["Loc_ManualBridgeHint"]     = "Keeps the bridge active continuously without waiting for a game",
+            ["Loc_Language"]             = "Language",
+            ["Loc_LanguageHint"]         = "User interface display language",
+            ["Loc_SoftwareUpdate"]       = "Software update",
+            ["Loc_BtnCheck"]             = "Check",
+
+            ["Loc_UpdateBannerTitle"]    = "Update available!",
+            ["Loc_UpdateBannerSubtitle"] = "A new version is ready for download",
+            ["Loc_BtnDownload"]          = "Download",
+            ["Loc_UpdateAvailableNotification"] = "Update available",
+            ["Loc_UpdateAvailableBody"]  = "Ds in Apex v{0} is available.",
+            ["Loc_UpdateDialogTitle"]    = "Ds in Apex \u2014 Updates",
+            ["Loc_UpdateDialogAvailableTitle"] = "Ds in Apex \u2014 Update available",
+            ["Loc_UpdatePrompt"]         = "A new version of Ds in Apex is available!\n\nCurrent version: v{0}\nLatest version: v{1}\n\nWould you like to download it now?",
+            ["Loc_UpdateUpToDate"]       = "Ds in Apex is up to date (version v{0}).",
+            ["Loc_UpdateError"]          = "Error checking for updates: ",
+            ["Loc_UpdateCheckUnavailable"] = "Unable to check for updates at this time.\nPlease check your Internet connection.",
+
+            ["Loc_DatabaseTitle"]        = "PCGamingWiki Database",
+            ["Loc_CertifiedGamesSingular"] = "{0} certified game",
+            ["Loc_CertifiedGamesPlural"] = "{0} certified games",
+            ["Loc_BtnGameList"]          = "Game list",
+            ["Loc_BtnLearnedExecutables"] = "Learned",
+            ["Loc_BtnSync"]              = "Sync",
+            ["Loc_Syncing"]              = "Synchronizing...",
+            ["Loc_SyncSuccess"]          = "Update successful!\n{0} {1}.",
+            ["Loc_SyncSuccessGamesSingular"] = "compatible game loaded",
+            ["Loc_SyncSuccessGamesPlural"] = "compatible games loaded",
+            ["Loc_SyncFailed"]           = "Unable to download the latest list.\nPlease check your Internet connection.",
+            ["Loc_LearnedWindowTitle"]   = "Learned executables",
+            ["Loc_LearnedWindowHint"]    = "Validated after the game process remains stable for 30 seconds, including passive identification during a forced manual bridge. Exports never include local paths.",
+            ["Loc_LearnedGame"]          = "Game",
+            ["Loc_LearnedExecutable"]    = "Executable",
+            ["Loc_LearnedMethod"]        = "Detection method",
+            ["Loc_LearnedSessions"]      = "Sessions",
+            ["Loc_LearnedLastSeen"]      = "Last seen",
+            ["Loc_LearnedEmpty"]         = "No executable has been learned yet.",
+            ["Loc_LearnedCountSingular"] = "{0} learned executable",
+            ["Loc_LearnedCountPlural"]   = "{0} learned executables",
+            ["Loc_LearningPendingSingular"] = "{0} validation in progress",
+            ["Loc_LearningPendingPlural"] = "{0} validations in progress",
+            ["Loc_BtnSelectAll"]         = "Select all",
+            ["Loc_BtnDeleteLearned"]     = "Delete",
+            ["Loc_BtnExportLearned"]     = "Export",
+            ["Loc_LearnedDeleteConfirm"] = "Delete the selected learned associations ({0})?",
+            ["Loc_LearnedExportSuccess"] = "The selected associations were exported without local paths.",
+            ["Loc_LearnedExportFailed"]  = "The export failed: {0}",
+
+            ["Loc_FooterStatus"]         = "Ds in Apex running in background",
+            ["Loc_BtnHide"]              = "Hide",
+
+            ["Loc_GameListTitle"]        = "Ds in Apex \u2014 Compatible Games",
+            ["Loc_GameListSubtitle"]     = "Browse certified games and manage automatic exclusions",
+            ["Loc_SearchPlaceholder"]    = "Search a game...",
+            ["Loc_TabAll"]               = "All",
+            ["Loc_TabTriggers"]          = "Triggers",
+            ["Loc_TabHaptics"]           = "Haptics",
+            ["Loc_TabExcluded"]          = "Excluded",
+            ["Loc_GamesDisplayedSingular"] = "{0} game displayed",
+            ["Loc_GamesDisplayedPlural"] = "{0} games displayed",
+            ["Loc_GamesExcludedSingular"] = "{0} excluded",
+            ["Loc_GamesExcludedPlural"]  = "{0} excluded",
+            ["Loc_PillAdaptive"]         = "Adaptive triggers",
+            ["Loc_PillHaptic"]           = "Haptic feedback",
+            ["Loc_PillTouchpad"]         = "Touchpad remapping",
+            ["Loc_ApexProfile"]          = "APEX profile",
+            ["Loc_ApexProfileKeep"]      = "Keep current",
+            ["Loc_ApexProfileNumber"]    = "Profile {0}",
+            ["Loc_ApexProfileHint"]      = "Temporarily selects this onboard profile while the game is running, then restores the previous profile.",
+            ["Loc_StateIncluded"]        = "Included",
+            ["Loc_StateExcluded"]        = "Excluded",
+            ["Loc_ExclusionsSavedHint"]  = "Exclusions and game profiles are automatically saved.",
+            ["Loc_NavCertifiedGames"]    = "Certified games",
+            ["NavLearnedExecutables"]    = "Learned executables",
+            ["Loc_NavLearnedExecutables"] = "Learned executables",
+            ["Loc_LearnedSubtitle"]      = "Executables associated with compatible games on this PC",
+            ["Loc_LearnedSearchPlaceholder"] = "Search executable or game...",
+            ["Loc_LearnedEmptySubtitle"] = "When a game runs with a stable session, it will appear here for instant startup.",
+            ["Loc_LearnedEmptyPendingSingular"] = "A game was detected. Keep playing while its executable is validated.",
+            ["Loc_LearnedEmptyPendingPlural"] = "{0} game processes were detected. Keep playing while their executables are validated.",
+            ["Loc_BtnDeleteSingle"]      = "Delete",
+
+            ["Loc_NavDashboard"]         = "Dashboard",
+            ["Loc_NavGameLibrary"]       = "Game Library",
+            ["Loc_NavLearned"]           = "Learned",
+            ["Loc_NavDrivers"]           = "Drivers",
+            ["Loc_NavHardwareTest"]      = "Hardware Test",
+            ["Loc_NavDiagnostics"]       = "Diagnostics",
+            ["Loc_NavSettings"]          = "Settings",
+            ["Loc_NavAbout"]             = "About",
+
+            ["Loc_PageDashboardDesc"]    = "Bridge status, current game and quick actions",
+            ["Loc_PageGameLibraryDesc"]  = "Browse certified games, manage exclusions and profile bindings",
+            ["Loc_PageLearnedDesc"]      = "Recognized executables and their session history",
+            ["Loc_PageDriversDesc"]      = "USBip / HidHide / ViGEmBus driver status and installation",
+            ["Loc_PageHardwareDesc"]     = "Device identification, trigger and rumble tests, input monitor",
+            ["Loc_PageDiagnosticsDesc"]  = "Collect diagnostics and export a report",
+            ["Loc_PageSettingsDesc"]     = "Detection policy, notifications, language and updates",
+            ["Loc_PageAboutDesc"]        = "Version info, open-source license and project notes",
+
+            ["Loc_PlaceholderPending"]   = "This page will be implemented in a later phase.",
+        };
+}

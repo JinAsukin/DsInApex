@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       Ds in Apex · 主应用（WinUI 3）
+       基于官方 winui-navview 模板生成后改造为 Unpackaged 部署。
+       改造与选型依据：docs/00-开发区域说明.md、docs/01-Spike结论与坑点清单.md
+       ═══════════════════════════════════════════════════════════════════ -->
+
+  <PropertyGroup>
+    <!-- ── 标识 ── -->
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DsInApex.App</RootNamespace>
+    <!-- 计划 §3.2：可执行文件名为 DsInApex.exe -->
+    <AssemblyName>DsInApex</AssemblyName>
+    <ApplicationIcon Condition="Exists('Assets\AppIcon.ico')">Assets\AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- ── 目标框架（Spike 实测锁定） ── -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <!-- ── WinUI 3 ── -->
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+
+    <!-- ── 部署模式：Unpackaged + Self-contained（Spike 验证通过） ── -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <!-- 官方模板默认 packaged；DIA 不使用 MSIX 工具链 -->
+    <EnableMsixTooling>false</EnableMsixTooling>
+
+    <!-- ── 语言/编译 ── -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefaultLanguage>zh-CN</DefaultLanguage>
+
+    <!-- ── 发布（P7 再调整） ── -->
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <!-- ═══ 依赖（版本锁定原则：主版本一经确定，中期不升级） ═══ -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
+    <!-- 托盘：稳定版上限 2.4.1。菜单必须走 ContextFlyout
+         （README 里的 ContextMenu 是 2.5.0-beta API，2.4.1 不存在） -->
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
+    <PackageReference Include="WinUIEx" Version="2.9.3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+  </ItemGroup>
+
+  <!-- ═══ 项目引用 ═══ -->
+  <ItemGroup>
+    <ProjectReference Include="..\DsInApex.Core\DsInApex.Core.csproj" />
+  </ItemGroup>
+
+  <!-- ═══ 资源 ═══ -->
+  <ItemGroup>
+    <Content Include="Assets\AppIcon.ico" />
+    <Content Include="Assets\SplashScreen.scale-200.png" />
+    <Content Include="Assets\LockScreenLogo.scale-200.png" />
+    <Content Include="Assets\Square150x150Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+    <Content Include="Assets\Square44x44Logo.targetsize-48_altform-lightunplated.png" />
+    <Content Include="Assets\StoreLogo.png" />
+    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+</Project>

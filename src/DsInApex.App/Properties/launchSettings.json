@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DsInApex.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "DsInApex.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
