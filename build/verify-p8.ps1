@@ -213,8 +213,50 @@ if (Test-Path -LiteralPath $WorkRoot) {
 }
 New-Item -ItemType Directory -Path $WorkRoot -Force | Out-Null
 
+# ══════════════════════════════════════════════════════════════════
+# 自启项备份与崩溃恢复（P8 实测教训）
+#
+# 🔴 为什么需要这个：脚本 S3 会改写 HKCU 自启项，收尾再还原。
+#    但如果脚本被 **Ctrl+C / 强杀 / 用户取消**，收尾代码根本不会执行 ——
+#    自启项就被永久留在了 `%TEMP%` 下的验收目录里（该目录随后被删 = 死链）。
+#    这个坑在 P8 首轮真实踩到（用户取消任务 → 注册表残留指向已删目录）。
+#
+# 做法：开始前把原值落盘成「恢复标记」，正常结束时删除它；
+#       下次启动若发现标记还在 → 说明上次异常中止 → 先按标记恢复再继续。
+# ══════════════════════════════════════════════════════════════════
+
+$RunBackupFile = Join-Path $env:TEMP 'DsInApex-P8-runbackup.txt'
+
+if (Test-Path -LiteralPath $RunBackupFile) {
+    Write-Host ''
+    Write-Host '  ⚠ 检测到上次验收未正常结束（恢复标记仍在）→ 先还原自启项' -ForegroundColor Yellow
+    try {
+        $lines = Get-Content -LiteralPath $RunBackupFile -Encoding UTF8
+        $marked = ($lines | Where-Object { $_ -like 'EXISTS=*' }) -replace '^EXISTS=', ''
+        $stored = ($lines | Where-Object { $_ -like 'VALUE=*' }) -replace '^VALUE=', ''
+
+        if ($marked -eq '1' -and $stored) {
+            Set-RunValue -Value $stored
+            Write-Host "    √ 已还原为上次开始前的值：$stored" -ForegroundColor Gray
+        } elseif ($marked -eq '0') {
+            Clear-RunValue
+            Write-Host '    √ 上次开始前无自启项，已清除残留值' -ForegroundColor Gray
+        }
+        Remove-Item -LiteralPath $RunBackupFile -Force -ErrorAction SilentlyContinue
+    } catch {
+        Write-Host "    × 还原失败（请手工检查 HKCU\\...\\Run 的 DsInApex 值）：$($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
 # 记录自启项原始值，验收结束必须还原
 $originalRunValue = Get-RunValue
+
+# 落盘恢复标记（原值不存在时也要记，否则恢复时无法区分「本来就没有」与「丢了」）
+$backupLines = @(
+    "EXISTS=$(if ($null -eq $originalRunValue) { '0' } else { '1' })",
+    "VALUE=$originalRunValue"
+)
+Set-Content -LiteralPath $RunBackupFile -Value $backupLines -Encoding UTF8
 
 # ══════════════════════════════════════════════════════════════════
 # S1 布局基线
@@ -474,6 +516,9 @@ if ($null -eq $originalRunValue) {
 } else {
     Set-RunValue -Value $originalRunValue
 }
+
+# 正常走完 → 摘掉恢复标记（下次启动就不会误以为上次异常中止）
+Remove-Item -LiteralPath $RunBackupFile -Force -ErrorAction SilentlyContinue
 
 if (-not $KeepArtifacts) {
     Remove-Item -LiteralPath $WorkRoot -Recurse -Force -ErrorAction SilentlyContinue
