@@ -67,14 +67,24 @@ public sealed partial class MainWindow : Window
     // ────────────────────────── 自检（DIA_SELFTEST=1） ──────────────────────────
 
     /// <summary>
-    /// P1 验收用自检：验证「导航壳可用」与「中英热切换生效」。
-    /// 这两项都依赖 UI 交互，没有钩子就只能靠人工点、留不下可复查的证据。
+    /// 验收自检：把「依赖 UI 交互、无法靠人工肉眼留存证据」的项目变成可复查的日志。
     ///
-    /// 自检**不修改** tray_settings.json —— 语言只临时切换后切回。
+    /// <para>
+    /// P1 覆盖：导航壳可用（8 页面路由）、中英热切换生效。
+    /// P2 追加：页面内容真的渲染出来了、设置文件读写往返一致。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ 顺序有讲究：语言切换会经由 <c>ViewModel.SwitchLanguage</c> 写盘，
+    /// 因此**设置往返测试必须排在最后**，否则后续写盘会覆盖掉已恢复的文件。
+    /// </para>
     /// </summary>
     private async void RunSelfTestIfRequested()
     {
         if (!SelfTest.IsRequested) return;
+
+        int passedSections = 0;
+        int totalSections = 0;
 
         try
         {
@@ -82,9 +92,11 @@ public sealed partial class MainWindow : Window
 
             SelfTest.LogHeader($"Ds in Apex 自检 · 起始语言={ViewModel.CurrentLanguage}");
 
-            // ── 1. 导航遍历：逐个选中，核对 Frame 真的切过去了 ──
-            SelfTest.LogHeader("导航遍历");
-            int ok = 0;
+            // ══════════ 1. 导航遍历 + 页面内容检查 ══════════
+            SelfTest.LogHeader("导航遍历 + 页面内容检查");
+            int routeOk = 0;
+            int contentOk = 0;
+
             foreach (NavigationItem target in ViewModel.NavigationItems)
             {
                 NavigationViewItem? menuItem = NavView.MenuItems
@@ -98,52 +110,110 @@ public sealed partial class MainWindow : Window
                 }
 
                 NavView.SelectedItem = menuItem;
-                await Task.Delay(200);
+                await Task.Delay(250);
 
-                Type? actual = NavFrame.CurrentSourcePageType;
-                bool passed = actual == target.PageType;
-                SelfTest.Log($"  {(passed ? "✓" : "✗")} {target.Tag,-12} → 期望 {target.PageType.Name,-20} 实际 {actual?.Name ?? "(null)"}");
-                if (passed) ok++;
+                Type? actualType = NavFrame.CurrentSourcePageType;
+                bool routePassed = actualType == target.PageType;
+                if (routePassed) routeOk++;
+
+                // 读页面内【实际渲染】的文本 —— 证明本地化真的落到 UI 上了，
+                // 而不是"字典查得到、界面一片空白"
+                string expected = LocalizationService.Shared.Get(target.LocKey);
+                List<string> texts = SelfTest.CollectTexts(NavFrame.Content as DependencyObject);
+                bool titleFound = texts.Contains(expected);
+                bool contentPassed = routePassed && texts.Count >= 2 && titleFound;
+                if (contentPassed) contentOk++;
+
+                SelfTest.Log(
+                    $"  {(routePassed && contentPassed ? "✓" : "✗")} {target.Tag,-12}" +
+                    $" 路由={actualType?.Name ?? "(null)",-18}" +
+                    $" 文本={texts.Count,-2}项" +
+                    $" 含标题\"{expected}\"={(titleFound ? "是" : "否")}");
             }
-            SelfTest.Log($"导航结果：{ok}/{ViewModel.NavigationItems.Count} 通过");
 
-            // ── 2. 语言热切换：读菜单项【实际显示文案】，而非字典返回值 ──
+            SelfTest.Log($"路由结果：{routeOk}/{ViewModel.NavigationItems.Count} 通过");
+            SelfTest.Log($"内容结果：{contentOk}/{ViewModel.NavigationItems.Count} 通过");
+
+            totalSections++;
+            if (routeOk == ViewModel.NavigationItems.Count && contentOk == ViewModel.NavigationItems.Count)
+            {
+                passedSections++;
+            }
+
+            // ══════════ 2. 语言热切换 ══════════
             SelfTest.LogHeader("语言热切换");
-            string zh = MenuItemText("dashboard");
-            SelfTest.Log($"[zh-CN] 仪表盘导航项实际文案 = \"{zh}\"");
+
+            // 归位到仪表盘，保证前后读的是同一页
+            NavigateTo("dashboard");
+            await Task.Delay(300);
+
+            string zhNav = MenuItemText("dashboard");
+            string zhPage = PageTitleText();
+            SelfTest.Log($"[zh-CN] 导航项文案 = \"{zhNav}\"  页面标题 = \"{zhPage}\"");
 
             LocalizationService.Shared.SetLanguage(Langs.En);
             await Task.Delay(400);
-            string en = MenuItemText("dashboard");
-            SelfTest.Log($"[en]    仪表盘导航项实际文案 = \"{en}\"");
-            SelfTest.Log($"  切换到英文生效 = {(zh != en && en.Length > 0 ? "是" : "否")}");
+            string enNav = MenuItemText("dashboard");
+            string enPage = PageTitleText();
+            SelfTest.Log($"[en]    导航项文案 = \"{enNav}\"  页面标题 = \"{enPage}\"");
+            bool navSwitched = zhNav != enNav && enNav.Length > 0;
+            bool pageSwitched = enPage.Length > 0 && enPage == enNav;
+            SelfTest.Log($"  导航项切换生效     = {(navSwitched ? "是" : "否")}");
+            SelfTest.Log($"  页面内容同步切换   = {(pageSwitched ? "是" : "否")}");
 
             LocalizationService.Shared.SetLanguage(Langs.ZhCN);
             await Task.Delay(400);
-            string back = MenuItemText("dashboard");
-            SelfTest.Log($"[zh-CN] 切回后实际文案 = \"{back}\"");
-            SelfTest.Log($"  切回中文一致 = {(back == zh ? "是" : "否")}");
+            string backNav = MenuItemText("dashboard");
+            string backPage = PageTitleText();
+            SelfTest.Log($"[zh-CN] 切回后导航项 = \"{backNav}\"  页面标题 = \"{backPage}\"");
+            bool backConsistent = backNav == zhNav && backPage == zhPage;
+            SelfTest.Log($"  切回中文一致       = {(backConsistent ? "是" : "否")}");
 
-            // 语言键值抽查（确认字典本身也切了）
-            SelfTest.Log($"  字典抽查 Loc_Language: zh-CN=\"{LocalizationService.Shared.Get("Loc_Language")}\"");
-
-            // 恢复界面选中态（自检改过语言但未写设置文件）
+            // 恢复界面选中态（自检改过语言，但未写设置文件）
             SyncLanguageSelection();
 
-            // ── 3. 通知链路（unpackaged 最大未知项，P2 依赖） ──
-            SelfTest.LogHeader("Toast 通知（unpackaged）");
+            // 顺带验证字典的缺键回退策略没被改坏
+            SelfTest.Log($"  缺键回退抽查(不存在的键) = \"{LocalizationService.Shared.Get("Loc___NotExist__")}\"");
+
+            totalSections++;
+            if (navSwitched && pageSwitched && backConsistent) passedSections++;
+
+            // ══════════ 3. 托盘（P2 关键结构：与 NavigationView 共存） ══════════
+            SelfTest.LogHeader("系统托盘");
+            bool trayCreated = TrayIcon.IsCreated;
+            int trayMenuItems = (TrayIcon.ContextFlyout as MenuFlyout)?.Items.Count ?? 0;
+            SelfTest.Log($"  托盘图标 IsCreated = {trayCreated}");
+            SelfTest.Log($"  右键菜单项数       = {trayMenuItems}");
+            SelfTest.Log($"  菜单文案(zh-CN)    = \"{LocalizationService.Shared.Get("Loc_TrayOpen")}\"" +
+                         $" / \"{LocalizationService.Shared.Get("Loc_TrayExit")}\"");
+
+            totalSections++;
+            if (trayCreated && trayMenuItems > 0) passedSections++;
+
+            // ══════════ 4. 通知链路（unpackaged 已知限制，仅记录不判定） ══════════
+            SelfTest.LogHeader("Toast 通知（unpackaged · 已知限制）");
             NotificationService notify = AppHost.Current.GetRequiredService<NotificationService>();
             foreach (string line in notify.Diagnose())
             {
                 SelfTest.Log("  " + line);
             }
 
-            // ── 4. 托盘（P2 关键结构：与 NavigationView 共存） ──
-            SelfTest.LogHeader("系统托盘");
-            SelfTest.Log($"  托盘图标 IsCreated = {TrayIcon.IsCreated}");
-            SelfTest.Log($"  右键菜单项数       = {(TrayIcon.ContextFlyout as MenuFlyout)?.Items.Count ?? 0}");
+            // ══════════ 5. 设置读写往返 ══════════
+            //   必须放最后：这一步会临时改写 tray_settings.json 后原样恢复，
+            //   若之后还有别的写盘动作，恢复就白做了。
+            SelfTest.LogHeader("设置读写往返");
+            (bool settingsPassed, IReadOnlyList<string> settingsLines) = SelfTest.RunSettingsRoundTrip();
 
-            SelfTest.LogHeader("自检结束");
+            foreach (string line in settingsLines)
+            {
+                SelfTest.Log(line);
+            }
+
+            totalSections++;
+            if (settingsPassed) passedSections++;
+
+            // ══════════ 汇总 ══════════
+            SelfTest.LogHeader($"自检结束：{passedSections}/{totalSections} 段通过");
         }
         catch (Exception ex)
         {
@@ -159,6 +229,16 @@ public sealed partial class MainWindow : Window
             .FirstOrDefault(m => (m.Tag as string) == tag);
 
         return item?.Content?.ToString() ?? "(未找到)";
+    }
+
+    /// <summary>
+    /// 取当前页面内首个非空 TextBlock 文本。
+    /// 占位页的结构里它就是页面标题，用于验证"页面内容跟着语言一起变"。
+    /// </summary>
+    private string PageTitleText()
+    {
+        List<string> texts = SelfTest.CollectTexts(NavFrame.Content as DependencyObject);
+        return texts.Count > 0 ? texts[0] : "(空)";
     }
 
     // ────────────────────────── 系统托盘 ──────────────────────────
