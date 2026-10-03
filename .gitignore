@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────
+#  Ds in Apex (DIA) · 主仓库忽略规则
+# ─────────────────────────────────────────────────────────────
+
+# ── 引擎镜像：独立的嵌套 git 仓库，由 engine/ 自身管理同步 ──
+#  上游 C++ 引擎保持原样以便跟进上游修复；不并入主仓库历史。
+/engine/
+
+# ── 第三方二进制（官方 v0.6.3 Portable 包等），仅本地验证用，不入版本控制 ──
+/vendor/
+
+# ── .NET 构建产物 ──
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+ARM64/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.binlog
+.vs/
+.vscode/
+*.csproj.user
+
+# ── NuGet / MSBuild ──
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+
+# ── C++ / CMake 构建输出 ──
+/build/
+/out/
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+*.vcxproj*
+*.sln.bak
+
+# ── Spike 一次性产物（验证完归档，不入版本控制） ──
+/spike/**/bin/
+/spike/**/obj/
+
+# ── 本地运行期数据 ──
+/.local/
+*.log
+tray_settings.json
+logs/
+diagnostics-output/
+
+# ── 安装器产物 ──
+installer/Output/
+installer/*.exe
+
+# ── 系统 ──
+Thumbs.db
+desktop.ini
+.DS_Store
