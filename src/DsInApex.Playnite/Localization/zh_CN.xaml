@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ds in Apex · Playnite 插件 · 简体中文
+  ⚠️ 键集合与占位符必须与 en_US.xaml 逐条一致 —— 由 build/verify-p9.ps1 的本地化审计强制校验。
+  ⚠️ 本文件为松散文件随包分发，不参与编译。
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+  <!-- ── 游戏右键菜单 ── -->
+  <sys:String x:Key="LOCDsInApex_MenuActivation">启用方式</sys:String>
+  <sys:String x:Key="LOCDsInApex_MenuRemapping">触控板映射</sys:String>
+  <sys:String x:Key="LOCDsInApex_MenuApexProfile">APEX 板载配置</sys:String>
+  <sys:String x:Key="LOCDsInApex_ActivationAuto">自动</sys:String>
+  <sys:String x:Key="LOCDsInApex_ActivationAutoDetected">自动（已识别的游戏）</sys:String>
+  <sys:String x:Key="LOCDsInApex_ActivationEnabled">启用</sys:String>
+  <sys:String x:Key="LOCDsInApex_ActivationDisabled">禁用</sys:String>
+  <sys:String x:Key="LOCDsInApex_RemappingAuto">自动</sys:String>
+  <sys:String x:Key="LOCDsInApex_RemappingNone">不映射</sys:String>
+  <sys:String x:Key="LOCDsInApex_ApexProfileKeep">保持当前配置</sys:String>
+  <sys:String x:Key="LOCDsInApex_ApexProfileSlot">配置 {0}</sys:String>
+
+  <!-- ── 配置档显示名 ── -->
+  <sys:String x:Key="LOCDsInApex_ProfileStandard">DualSense 标准</sys:String>
+  <sys:String x:Key="LOCDsInApex_ProfileSpiderMan2">Spider-Man 2</sys:String>
+  <sys:String x:Key="LOCDsInApex_ProfileMilesMorales">Spider-Man: Miles Morales</sys:String>
+  <sys:String x:Key="LOCDsInApex_ProfileGhostOfTsushima">Ghost of Tsushima</sys:String>
+  <sys:String x:Key="LOCDsInApex_ProfileWarframe">Warframe（默认 Xbox 布局）</sys:String>
+  <sys:String x:Key="LOCDsInApex_ProfileDisabled">已禁用（手动覆盖）</sys:String>
+
+  <!-- ── 设置页 ── -->
+  <sys:String x:Key="LOCDsInApex_SettingsIntro">Ds in Apex 让飞智 APEX 手柄在 PC 上变成原生 PS5 DualSense。本扩展在受支持的游戏启动时拉起桥接，等虚拟 DualSense 就绪，并在游戏退出后把手柄干净地还原。</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsInstallation">部署位置</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsDetectAutomatically">自动检测</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsBrowse">浏览…</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsPathTooltip">可选：指向 DsInApex.exe（或其所在文件夹），用于便携版或自定义部署位置</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsUpdates">更新</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsCurrentVersion">当前版本：</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsCheckForUpdates">检查更新</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsAutoCheckUpdates">Playnite 启动时自动检查 GitHub 更新</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsOpenReleasePage">打开发布页</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsUpdateHint">便携版：下载 ZIP 并解压覆盖当前目录即可，不会静默安装任何东西。</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsAutomaticProfiles">自动配置档</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsDetectProfilesAtLaunch">游戏启动时自动识别已验证的配置档</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsRumble">震动</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsEnableRumble">启用握把震动与音频触觉</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsHapticThreshold">触觉阈值（%）</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsInitTimeout">初始化超时（秒）</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsOverrides">手动覆盖</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsOverridesHint">全部保持自动时此列表为空。在游戏上右键 → Ds in Apex，可分别设置启用方式、触控板映射与 APEX 板载配置。</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsColumnGame">游戏</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsColumnActivation">启用方式</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsColumnRemapping">触控板映射</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsColumnApexProfile">APEX 配置</sys:String>
+
+  <!-- ── 状态文本 ── -->
+  <sys:String x:Key="LOCDsInApex_StatusNotInstalled">未找到</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusConfiguredManually">已手动指定 DsInApex.exe</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusDetectedAutomatically">已自动检测到部署位置</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusInstallationNotFound">未找到 Ds in Apex 部署目录</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusChecking">正在向 GitHub 查询更新…</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusUpdateAvailable">发现新版本：{0}</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusLatest">当前已是最新版本（{0}）。</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusError">错误：{0}</sys:String>
+  <sys:String x:Key="LOCDsInApex_StatusVersionUnknown">未知</sys:String>
+
+  <!-- ── 错误与对话框 ── -->
+  <sys:String x:Key="LOCDsInApex_DlgTitle">Ds in Apex</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrSessionAlreadyActive">已有一个 Ds in Apex 桥接会话在运行。</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrExternalSessionActive">另一个程序（Ds in Apex 主程序或官方托盘）正在占用桥接。</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrExternalSessionActiveHint">请先结束那个会话，再重新启动游戏。</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrDeployRootNotFound">未找到 Ds in Apex。请解压便携包，或在扩展设置中指定 DsInApex.exe 的位置。</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrEngineNotFound">部署目录中缺少桥接引擎（engine\ApexSenseBridge.exe）。</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrBridgeStartFailed">无法启动 Ds in Apex 桥接。</sys:String>
+  <sys:String x:Key="LOCDsInApex_DlgUpdateTitle">Ds in Apex — 更新</sys:String>
+  <sys:String x:Key="LOCDsInApex_DlgUpdateBody">Ds in Apex {0} 已发布。
+
+这是便携版：请下载 ZIP 并解压覆盖当前目录，不会静默安装任何东西。
+
+现在打开发布页吗？</sys:String>
+  <sys:String x:Key="LOCDsInApex_NotifyUpdate">Ds in Apex {0} 已发布。点击打开发布页。</sys:String>
+  <sys:String x:Key="LOCDsInApex_BrowseFilter">Ds in Apex|DsInApex.exe|可执行文件|*.exe</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrSelectWrongExe">请选择部署目录中的 DsInApex.exe。</sys:String>
+  <sys:String x:Key="LOCDsInApex_VerifyDeployRootNotFound">未找到 Ds in Apex。请先部署，或在扩展设置中选择 DsInApex.exe。</sys:String>
+  <sys:String x:Key="LOCDsInApex_VerifyHapticRange">触觉阈值必须在 0 到 95 之间。</sys:String>
+  <sys:String x:Key="LOCDsInApex_VerifyTimeoutRange">初始化超时必须在 5 到 60 秒之间。</sys:String>
+
+  <!-- ── 更新检查错误 ── -->
+  <sys:String x:Key="LOCDsInApex_ErrBadTag">无法解析发布标签：{0}</sys:String>
+  <sys:String x:Key="LOCDsInApex_ErrBothEndpointsUnreachable">两个更新端点都不可达（jsDelivr 清单 / GitHub 发布页）。</sys:String>
+
+  <!-- ── 桥接会话（IPC 契约相关） ── -->
+  <sys:String x:Key="LOCDsInApex_BridgeIpcCollision">IPC 事件名冲突。</sys:String>
+  <sys:String x:Key="LOCDsInApex_BridgeProcessNotStarted">桥接引擎进程未能启动。</sys:String>
+  <sys:String x:Key="LOCDsInApex_BridgeExited">引擎在报告就绪之前退出（退出码 {0}）。</sys:String>
+  <sys:String x:Key="LOCDsInApex_BridgeInitTimeout">引擎未能在 {0} 秒内完成初始化。</sys:String>
+  <sys:String x:Key="LOCDsInApex_BridgeIpcIncompatible">桥接返回了不兼容的 IPC 状态块。</sys:String>
+  <sys:String x:Key="LOCDsInApex_BridgeInitFailed">桥接初始化失败（退出码 {0}）。</sys:String>
+
+</ResourceDictionary>

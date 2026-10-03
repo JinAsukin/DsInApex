@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       Ds in Apex · Playnite 插件
+       迁移来源：engine/playnite/ApexSenseBridge（上游 0.6.3，engine 只读基线 e438507）
+       目标框架必须是 net462 —— PlayniteSDK 6.16.0 的 nupkg 里只有 lib/net462，
+       没有其它 TFM 可选（已实测 .cache/playnite-sdk-6.16.0/playnitesdk.6.16.0.nupkg）。
+
+       ⚠️ 为什么用 Microsoft.NET.Sdk.WindowsDesktop 而不是 Microsoft.NET.Sdk：
+       实测（.cache/probe-net462）—— 纯 Microsoft.NET.Sdk + UseWPF=true 在 net462 下
+       会**静默跳过 XAML 编译**（不报错、不生成 .baml，产物里没有 g.resources，
+       直到运行时 InitializeComponent 找不到资源才炸）。换成 WindowsDesktop SDK 后
+       Page 通配与 MarkupCompile 才真正生效（生成的 obj/.../Xxx.baml + Xxx.g.cs 为证）。
+
+       ⚠️ 构建通道用 `dotnet build`，不要用 VS 的 MSBuild.exe：
+       net462 参考程序集在本机不存在，由 NuGet 版 ReferenceAssemblies 兜住；
+       且 dotnet CLI 是唯一在本项目沙箱下可用的构建入口（MSBuild.exe 被拦）。
+       ═══════════════════════════════════════════════════════════════════ -->
+
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DsInApex.Playnite</RootNamespace>
+    <AssemblyName>DsInApex.Playnite</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <!-- 版本号由 Properties/AssemblyInfo.cs 手工维护（与 DIA 主程序对齐） -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Playnite 只认「DLL 与 extension.yaml 同目录」，输出路径不要带 TFM 子目录 -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+
+    <!-- Playnite SDK 解析顺序：显式传参 → 环境变量 → 本机安装（由 build 脚本注入） -->
+    <PlayniteSdkPath Condition="'$(PlayniteSdkPath)' == '' and '$(PLAYNITE_SDK_PATH)' != ''">$(PLAYNITE_SDK_PATH)</PlayniteSdkPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Playnite.SDK 绝不随包分发（Playnite 宿主自带） -->
+    <Reference Include="Playnite.SDK">
+      <HintPath>$(PlayniteSdkPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- net462 的默认框架引用集里没有 System.Net.Http（更新检查要用） -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 本机无 .NET Framework 4.6.2 参考程序集时由 NuGet 补齐（SDK 自动使用）。
+         这样 CI / 干净机器不需要装 VS 的 targeting pack。 -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 官方支持游戏库（215 条），来自仓库根 data/，与主程序同源。
+         LogicalName 必须与 SupportedGameCatalog.CatalogResourceName 逐字一致。 -->
+    <EmbeddedResource Include="..\..\data\supported_games.json">
+      <Link>supported_games.json</Link>
+      <LogicalName>DsInApex.Playnite.supported_games.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ⚠️ Localization/*.xaml 必须作为「松散文件」随包分发（Playnite 从扩展目录按语言读取），
+         绝不能被当成 Page 编译进 DLL —— 所以先从 Page 里摘掉，再作为 None 复制到输出目录。 -->
+    <Page Remove="Localization\**\*.xaml" />
+    <None Include="Localization\**\*.xaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="extension.yaml;icon.png;README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="ValidatePlayniteSdk" BeforeTargets="ResolveReferences" Condition="'$(PlayniteSdkPath)' == '' Or !Exists('$(PlayniteSdkPath)')">
+    <Error Text="Playnite.SDK.dll 未找到。请用 build/build-playnite-extension.ps1 构建，或显式传 -p:PlayniteSdkPath=&lt;路径&gt;（亦可设环境变量 PLAYNITE_SDK_PATH）。" />
+  </Target>
+
+</Project>

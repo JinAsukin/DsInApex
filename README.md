@@ -37,6 +37,7 @@
 | **用户界面** | 上游的 WPF 托盘界面**整个弃用**，用 **WinUI 3 全量重写**（导航壳 / MVVM / 本地化 / 主题 / 托盘 / 后台行为） |
 | **中文支持** | 上游只有英法两种界面语言。中文是**全新翻译**（120+ 词条），不是补第三份字典 |
 | **交付形态** | 上游为 Inno 安装器；本项目为**便携绿色包**（解压即用、不写安装项、不注册系统服务） |
+| **Playnite 插件** | 上游插件查注册表找安装路径、靠下载安装器更新；本项目改为**沿目录找 `DsInApex.exe`**（绿色版无安装项）、只提示更新；界面文案从硬编码法文改为 en/zh 双语 |
 
 由于 UI 层是重写而非翻译，**本项目的界面不会与上游 WPF 版保持同步** —— 这是明确接受的代价。
 
@@ -62,6 +63,11 @@
 **托盘**：20 项后台控制面 —— 状态行、启停桥接、开机自启、硬件测试/诊断入口、恢复手柄可见性（仅在异常遗留时出现）、检查更新、中英切换、退出。
 
 **其它**：中英热切换（无需重启）、单实例、退出清理（托盘退出 / 关窗 / 进程被杀三条路径）、开机自启**路径漂移自动纠偏**。
+
+**Playnite 联动**（独立分发的 `.pext`）：受支持游戏启动时自动拉起桥接并等虚拟 DualSense 就绪，
+游戏退出后干净还原手柄；游戏右键菜单可分别设置「启用方式 / 触控板映射 / APEX 板载配置」。
+与会话互斥**共用同一个引擎互斥体**，因此与主程序、官方托盘三方不抢手柄。
+插件界面支持**简体中文 / 英文**（跟随 Playnite 语言）。
 
 ---
 
@@ -157,6 +163,21 @@ powershell -File build\make-portable.ps1
 先下载官方 [ApexSenseBridge v0.6.3 Portable 包](https://github.com/ReynArts/ApexSenseBridge/releases)
 解压到 `vendor\portable-0.6.3\ApexSenseBridge-Portable\`。
 
+### 打 Playnite 插件包
+
+```powershell
+powershell -File build\build-playnite-extension.ps1
+```
+
+产出 `build\release\DsInApex-Playnite-<版本>.pext`，在 Playnite 里
+「扩展 → 从文件安装扩展」装上即可。
+
+- **构建走 `dotnet build`，不要用 MSBuild.exe**：插件 TFM 是 `net462`（Playnite SDK 6.16.0
+  只提供 `lib/net462`），本机没有 .NET Framework 参考程序集时由
+  `Microsoft.NETFramework.ReferenceAssemblies` NuGet 包补齐。
+- 本机未安装 Playnite 时，脚本会从 NuGet 取**钉版 PlayniteSDK 6.16.0** 并做 SHA-256 校验。
+- 静态验收：`powershell -File build\verify-p9.ps1`（S1 产物 / S2 身份与版本 / S3 包结构 / S4 本地化审计）。
+
 ---
 
 ## 目录结构
@@ -178,14 +199,18 @@ version.json                  版本清单（更新检查读取）
 SHA256SUMS.txt                包内逐文件校验清单
 ```
 
+> Playnite 插件是**独立分发**的 `.pext`（不在便携包内），见「打 Playnite 插件包」。
+
 源码仓库：
 
 ```
 src\DsInApex.App\              WinUI 3 主程序（UI / 托盘 / 本地化 / 自检）
 src\DsInApex.Core\             业务逻辑（无 UI 依赖）
-src\DsInApex.Playnite\         Playnite 插件（规划中）
+src\DsInApex.Playnite\         Playnite 插件（net462 + Playnite SDK，独立打包为 .pext）
 engine\                        上游 C++ 引擎源码镜像（独立 git，基线 e438507）
 build\make-portable.ps1        便携包打包脚本
+build\build-playnite-extension.ps1  Playnite 插件打包脚本
+build\verify-p8.ps1 / verify-p9.ps1 主程序 / 插件验收脚本
 vendor\                        官方引擎二进制（不入版本控制）
 data\supported_games.json      游戏库云端数据源（见下节）
 docs\                          各阶段技术报告
