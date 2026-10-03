@@ -57,6 +57,7 @@ public sealed class AppHost
         services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
 
         // ─────────── App 层 ───────────
+        services.AddSingleton<NotificationService>();
         services.AddSingleton<MainWindowViewModel>();
     }
 }

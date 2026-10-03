@@ -44,6 +44,11 @@ public sealed partial class MainWindow : Window
 
         _ready = true;
 
+        SetupTray();
+
+        // 关闭窗口不退出，隐藏到托盘（桥接需在后台持续工作）
+        AppWindow.Closing += OnAppWindowClosing;
+
         // 默认落在第一个导航页
         NavigationViewItem? firstItem = NavView.MenuItems.OfType<NavigationViewItem>().FirstOrDefault();
         if (firstItem is not null)
@@ -125,6 +130,19 @@ public sealed partial class MainWindow : Window
             // 恢复界面选中态（自检改过语言但未写设置文件）
             SyncLanguageSelection();
 
+            // ── 3. 通知链路（unpackaged 最大未知项，P2 依赖） ──
+            SelfTest.LogHeader("Toast 通知（unpackaged）");
+            NotificationService notify = AppHost.Current.GetRequiredService<NotificationService>();
+            foreach (string line in notify.Diagnose())
+            {
+                SelfTest.Log("  " + line);
+            }
+
+            // ── 4. 托盘（P2 关键结构：与 NavigationView 共存） ──
+            SelfTest.LogHeader("系统托盘");
+            SelfTest.Log($"  托盘图标 IsCreated = {TrayIcon.IsCreated}");
+            SelfTest.Log($"  右键菜单项数       = {(TrayIcon.ContextFlyout as MenuFlyout)?.Items.Count ?? 0}");
+
             SelfTest.LogHeader("自检结束");
         }
         catch (Exception ex)
@@ -141,6 +159,72 @@ public sealed partial class MainWindow : Window
             .FirstOrDefault(m => (m.Tag as string) == tag);
 
         return item?.Content?.ToString() ?? "(未找到)";
+    }
+
+    // ────────────────────────── 系统托盘 ──────────────────────────
+
+    /// <summary>
+    /// 创建托盘图标。unpackaged 下需显式 <c>ForceCreate()</c>，
+    /// 否则图标可能不进入通知区域（Spike 已踩过）。
+    /// </summary>
+    private void SetupTray()
+    {
+        try
+        {
+            TrayIcon.ForceCreate();
+            int menuItems = (TrayIcon.ContextFlyout as MenuFlyout)?.Items.Count ?? 0;
+            AppLog.Info(LogFileName, $"托盘图标已创建：IsCreated={TrayIcon.IsCreated}，菜单项={menuItems}");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn(LogFileName, $"托盘初始化失败：{AppLog.Describe(ex)}");
+        }
+    }
+
+    private void OnTrayOpenClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            AppWindow.Show();
+            Activate();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn(LogFileName, $"从托盘恢复窗口失败：{AppLog.Describe(ex)}");
+        }
+    }
+
+    /// <summary>
+    /// 托盘菜单里做中英对切，并同步窗口内的单选按钮选中态。
+    ///
+    /// 注意这里**直接调语言服务**而非 ViewModel 的 SetLanguage 路径：
+    /// 托盘切换不应写 tray_settings.json（与设置页切换的语义不同，
+    /// 后者是"用户显式改设置"，前者是快捷操作）。此处保持与设置页一致的持久化行为。
+    /// </summary>
+    private void OnTrayLanguageClick(object sender, RoutedEventArgs e)
+    {
+        bool isEn = string.Equals(ViewModel.CurrentLanguage, Langs.En, StringComparison.OrdinalIgnoreCase);
+        ViewModel.IsChineseSelected = !isEn;
+        SyncLanguageSelection();
+
+        AppLog.Info(LogFileName, $"托盘切换语言 → {ViewModel.CurrentLanguage}");
+    }
+
+    private void OnTrayExitClick(object sender, RoutedEventArgs e)
+    {
+        AppLog.Info(LogFileName, "从托盘菜单退出");
+        Application.Current.Exit();
+    }
+
+    /// <summary>
+    /// 拦截窗口关闭：隐藏到托盘而不是结束进程。
+    /// 桥接需要在后台持续工作，点 X 不该把服务一起带走。
+    /// </summary>
+    private void OnAppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        args.Cancel = true;
+        sender.Hide();
+        AppLog.Info(LogFileName, "窗口已隐藏到托盘（进程继续运行）");
     }
 
     // ────────────────────────── 导航 ──────────────────────────
