@@ -104,8 +104,8 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
 }
 
 $RepoSlug   = 'JinAsukin/DsInApex'
-$EngineVer  = '0.6.3'
-$EngineBase = 'e438507'
+$EngineVer  = '1.0.0-beta.9'
+$EngineBase = 'f17bca8'
 
 function Write-Step([string] $text) {
     Write-Host ''
