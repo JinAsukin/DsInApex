@@ -251,9 +251,55 @@ public partial class HardwareTestViewModel : ObservableObject
 
     // ═══════════════════════ 硬件测试（会真实驱动手柄） ═══════════════════════
 
+    /// <summary>扳机测试的时长（秒）。引擎默认 2 秒，取 3 秒让手感更容易分辨。</summary>
+    private const int TriggerTestSeconds = 3;
+
+    /// <summary>
+    /// 扳机强度档位索引（0–3，对应引擎 <c>--level 1..4</c>）。默认 1（即 level 2）。
+    ///
+    /// <para>
+    /// 之所以要暴露给用户：引擎各档的力度差别很大（level 1 ≈ 30–40、
+    /// level 4 ≈ 230–240），而默认的 level 2 相当轻 ——
+    /// 「某一侧完全没反应」和「那一侧力度太轻感觉不到」是两回事，
+    /// 不给档位就无法区分。
+    /// </para>
+    /// </summary>
+    public int TriggerLevelIndex { get; set; } = 1;
+
+    /// <summary>当前档位对应的引擎 <c>--level</c> 取值（1–4）。</summary>
+    private int TriggerLevel => TriggerLevelIndex + 1;
+
+    /// <summary>
+    /// 左扳机自适应测试（<c>test-trigger --side lt</c>）。
+    ///
+    /// <para>
+    /// ⚠️ 分侧测试是<b>上游 1.0.0 才具备的能力</b>（旧版只有 <c>test-rt</c>，
+    /// 它固定驱动<b>右</b>扳机）。这正是"到底哪一侧坏"长期无法自证的原因 ——
+    /// 硬件测试页以前只有一个按钮，点下去永远只动右边。
+    /// </para>
+    /// </summary>
     [RelayCommand]
-    private Task TestTriggerAsync() => RunAsync(
-        "test-rt", null, _loc.Get("Loc_HwResultTestRt"));
+    private Task TestTriggerLeftAsync() => RunAsync(
+        "test-trigger",
+        new EngineCommandOptions(
+            TriggerSide: "lt", Seconds: TriggerTestSeconds, TriggerLevel: TriggerLevel),
+        _loc.Get("Loc_HwResultTestTrigger"));
+
+    /// <summary>右扳机自适应测试（<c>test-trigger --side rt</c>）。</summary>
+    [RelayCommand]
+    private Task TestTriggerRightAsync() => RunAsync(
+        "test-trigger",
+        new EngineCommandOptions(
+            TriggerSide: "rt", Seconds: TriggerTestSeconds, TriggerLevel: TriggerLevel),
+        _loc.Get("Loc_HwResultTestTrigger"));
+
+    /// <summary>双侧同时测试（<c>test-trigger --side both</c>）—— 用来做左右手感对照。</summary>
+    [RelayCommand]
+    private Task TestTriggerBothAsync() => RunAsync(
+        "test-trigger",
+        new EngineCommandOptions(
+            TriggerSide: "both", Seconds: TriggerTestSeconds, TriggerLevel: TriggerLevel),
+        _loc.Get("Loc_HwResultTestTrigger"));
 
     [RelayCommand]
     private Task TestRumbleAsync() => RunAsync(
@@ -340,6 +386,14 @@ public partial class HardwareTestViewModel : ObservableObject
             DeviceDetail = _loc.Format(
                 "Loc_HwDeviceDetail", primary.VendorId, primary.ProductId,
                 primary.InputReportLength, primary.OutputReportLength);
+
+            // 身份态提示：详见 BuildIdentityHint 的注释。
+            // 引擎的 identify 在两种身份下都报 "Apex 4"，只有这里能看出区别。
+            string identityHint = BuildIdentityHint(primary);
+            if (identityHint.Length > 0)
+            {
+                DeviceDetail += " ｜ " + identityHint;
+            }
         }
         else
         {
@@ -541,6 +595,50 @@ public partial class HardwareTestViewModel : ObservableObject
         }
 
         return device.Product;
+    }
+
+    /// <summary>
+    /// 生成「手柄身份态」提示。
+    ///
+    /// <para>
+    /// 🔴 实测结论（2026-10-03，APEX 4 / firmware 0x6837）：
+    /// 同一台 APEX 4 会以<b>两种不同的 USB 身份</b>出现 ——
+    /// <b>VID:PID 都还是 04B4:2412，但产品名与输出报告长度不同</b>：
+    /// <list type="bullet">
+    /// <item><c>Flydigi APEX 4</c>（输出报告 <b>64</b> 字节、<c>Connection: wired</c>）
+    /// —— 左右扳机的 FORCEADAPT <b>都可用</b>；</item>
+    /// <item><c>Flydigi VADER3</c>（引擎侧旧别名；浏览器 WebHID 常显示为
+    /// <c>Flydigi Direwolf 3</c>，输出报告 <b>32</b> 字节、<c>Connection: dongle</c>）
+    /// —— <b>仅 LT 有效，RT 的自适应不生效</b>。</item>
+    /// </list>
+    /// 触发条件在物理连接上：<b>接收器在位的同时用有线接入</b>（或先有线再插接收器）
+    /// 才进入完整身份；单独插拔、以及桥接启停引起的重新枚举，都会退回降级身份。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ 之所以必须写在界面上：引擎 <c>identify</c> 两种情况下都返回 "Apex 4"
+    /// （它只看 <c>deviceType == 84</c>），<b>机型名看不出任何区别</b>。
+    /// 唯一能区分的是 HID 产品名与输出报告长度 —— 而这两项恰好都在
+    /// <see cref="FlydigiDeviceInfo"/> 里，所以这是让用户自行判断的唯一手段。
+    /// </para>
+    /// </summary>
+    private string BuildIdentityHint(FlydigiDeviceInfo device)
+    {
+        bool isApex4VidPid =
+            string.Equals(device.VendorId, "04B4", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(device.ProductId, "2412", StringComparison.OrdinalIgnoreCase);
+
+        if (!isApex4VidPid)
+        {
+            return string.Empty;
+        }
+
+        // "Flydigi APEX 4" 才是完整身份；VADER3 / Direwolf 3 属于降级身份
+        bool fullIdentity = device.Product.Contains("APEX 4", StringComparison.OrdinalIgnoreCase);
+
+        return fullIdentity
+            ? _loc.Get("Loc_HwIdentityFull")
+            : _loc.Get("Loc_HwIdentityDegraded");
     }
 
     private string LinkText(LinkMode link) => _loc.Get(link switch

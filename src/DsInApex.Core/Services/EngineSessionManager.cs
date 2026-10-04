@@ -194,8 +194,37 @@ public sealed class EngineSessionManager
         SessionStopped?.Invoke(reason);
     }
 
-    private void RaiseSessionError(string err) => SessionError?.Invoke(err);
+    /// <summary>
+    /// 只置停止事件、不等引擎退出。
+    ///
+    /// <para>
+    /// 与 <see cref="StopSession"/> 的分工：
+    /// 后者会阻塞到引擎走完 restore 流程（最长 15 秒，<c>apex_original_restored=yes</c>
+    /// 这个验收硬指标依赖这段等待），因此**只能在线程池上调用**；
+    /// 本方法只发信号，专给「进程自身正在退出、不允许再阻塞」的场景用
+    /// （<c>AppDomain.ProcessExit</c> / 强杀 / 关机）。
+    /// </para>
+    ///
+    /// <para>
+    /// 刻意<span>不</span>把 <c>activeSession</c> 置空：进程马上就要结束，
+    /// 没有后续查询需要一致性，反而留着一份引用便于日志留痕。
+    /// </para>
+    /// </summary>
+    public void RequestStop(string reason)
+    {
+        BridgeSession? session;
+        lock (syncLock)
+        {
+            session = activeSession;
+        }
 
+        if (session is null) return;
+
+        RaiseLogMessage(LocFormat("Loc_LogStoppingSession", reason));
+        session.RequestStop();
+    }
+
+    private void RaiseSessionError(string err) => SessionError?.Invoke(err);
     private void RaiseLogMessage(string msg) => LogMessage?.Invoke(msg);
 
     /// <summary>

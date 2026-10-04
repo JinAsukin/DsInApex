@@ -17,13 +17,26 @@ namespace DsInApex.Core.Services;
 /// <param name="ProfileTarget"><c>--target</c> 的取值（1–4，仅配置档切换用）。</param>
 /// <param name="Rumble">是否追加 <c>--rumble</c>（仅 <c>apex4-port-test</c> 用）。</param>
 /// <param name="ForceAdapt">是否追加 <c>--forceadapt</c>（仅 <c>apex4-port-test</c> 用）。</param>
+/// <param name="TriggerSide">
+/// <c>--side</c> 的取值（仅 <c>test-trigger</c> 用）：<c>lt</c> / <c>rt</c> / <c>both</c>。
+/// </param>
+/// <param name="TriggerMode">
+/// <c>--mode</c> 的取值（仅 <c>test-trigger</c> 用）：
+/// <c>resistance</c> / <c>weapon</c> / <c>vibration</c> / <c>bow</c> / <c>normal</c>。
+/// </param>
+/// <param name="TriggerLevel">
+/// <c>--level</c> 的强度档位 1–4（仅 <c>test-trigger</c> 用）。越界不会下发。
+/// </param>
 public sealed record EngineCommandOptions(
     int? DeviceIndex = null,
     int? Seconds = null,
     bool Json = false,
     int? ProfileTarget = null,
     bool Rumble = false,
-    bool ForceAdapt = false);
+    bool ForceAdapt = false,
+    string? TriggerSide = null,
+    string? TriggerMode = null,
+    int? TriggerLevel = null);
 
 /// <summary>
 /// 引擎 CLI 命令目录（<b>唯一真源</b>）。
@@ -110,6 +123,18 @@ public static class EngineCommandCatalog
             NeedsDevice: true,
             NeedsSessionIdle: true,
             DefaultTimeoutMs: 30_000),
+
+        // P10：test-trigger 是上游 1.0.0 才有的能力 —— 能**分侧**驱动扳机。
+        // 旧版只有 test-rt（只测右扳机），导致「到底哪一侧坏」根本无法自证，
+        // 实测报告里"RT 没反应"这种结论只能靠体感，没法复现。
+        new(Id: "test-trigger",
+            Category: EngineCommandCategory.HardwareTest,
+            Risk: EngineCommandRisk.WritesHardware,
+            SupportsIndex: true,
+            NeedsDevice: true,
+            NeedsSessionIdle: true,
+            DefaultTimeoutMs: SampleTimeoutMs,   // 引擎 --seconds 上限 60，留足裕量
+            SecondsOption: (EngineSecondsRange.Min, EngineSecondsRange.Max)),
 
         new(Id: "test-rumble",
             Category: EngineCommandCategory.HardwareTest,
@@ -225,6 +250,32 @@ public static class EngineCommandCatalog
             if (options.ForceAdapt) parts.Add("--forceadapt");
         }
 
+        // --side / --mode / --level：仅 test-trigger
+        // ⚠️ 取值直接透传上游的字符串字面量（C++ 侧对未知取值会**静默回落到默认**，
+        //    不会报错），所以合法性约束必须在 UI 层做，别指望引擎兜底。
+        //    可接受的别名见 DeviceCommands.cpp：side 还认 left/l2/right/r2；
+        //    mode 还认 race/off/clear/break/sniper/rattle/recoil。
+        if (spec.Id == "test-trigger")
+        {
+            if (!string.IsNullOrWhiteSpace(options.TriggerSide))
+            {
+                parts.Add("--side");
+                parts.Add(options.TriggerSide);
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.TriggerMode))
+            {
+                parts.Add("--mode");
+                parts.Add(options.TriggerMode);
+            }
+
+            if (options.TriggerLevel is >= 1 and <= 4)
+            {
+                parts.Add("--level");
+                parts.Add(options.TriggerLevel.Value.ToString(CultureInfo.InvariantCulture));
+            }
+        }
+
         return string.Join(" ", parts);
     }
 
@@ -275,6 +326,13 @@ public static class EngineCommandCatalog
             "test-rt" when exitCode == 4
                 => new("Loc_HwExit_WriteFailed", "写入扳机效果失败。"),
             "test-rt" when exitCode == 5
+                => new("Loc_HwExit_ResetFailed", "测试后自动复位失败——请在飞智空间站把手柄两个扳机设回「标准」。"),
+
+            "test-trigger" when exitCode == 3
+                => new("Loc_HwExit_OpenFailed", "无法打开手柄。"),
+            "test-trigger" when exitCode == 4
+                => new("Loc_HwExit_WriteFailed", "写入扳机效果失败——引擎输出里会指明是 LT 还是 RT。"),
+            "test-trigger" when exitCode == 5
                 => new("Loc_HwExit_ResetFailed", "测试后自动复位失败——请在飞智空间站把手柄两个扳机设回「标准」。"),
 
             "test-rumble" when exitCode == 3

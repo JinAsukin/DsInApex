@@ -271,6 +271,7 @@ public static partial class EngineOutputParser
         return commandId switch
         {
             "test-rt" => stdout.Contains("RT reset to Normal", StringComparison.OrdinalIgnoreCase),
+            "test-trigger" => stdout.Contains("Triggers reset to Normal", StringComparison.OrdinalIgnoreCase),
             "test-rumble" => stdout.Contains("Grip rumble stopped", StringComparison.OrdinalIgnoreCase),
             "clear" => stdout.Contains("reset to Normal", StringComparison.OrdinalIgnoreCase),
             "test-profile-switch" => stdout.Contains("Profile-switch diagnostic passed", StringComparison.OrdinalIgnoreCase),

@@ -30,7 +30,7 @@
                         ToolTipText="Ds in Apex"
                         IconSource="/Assets/AppIcon.ico"
                         MenuActivation="RightClick"
-                        ContextMenuMode="PopupMenu">
+                        ContextMenuMode="SecondWindow">
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout Opening="OnTrayMenuOpening">
                     <!-- 状态行：禁用态，只读展示 -->

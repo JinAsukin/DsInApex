@@ -21,13 +21,13 @@ Ds in Apex（DIA）依据 **GNU General Public License v3.0 or later** 分发。
 
 ## 2. 引擎层（上游来源）
 
-DIA 的 `engine/` 目录是上游引擎仓库的**原样镜像**（独立 git，基线 commit `e438507`，即 v0.6.3）。
+DIA 的 `engine/` 目录是上游引擎仓库的**原样镜像**（独立 git，基线 commit `f17bca8`，即 dev 分支的 v1.0.0-beta.9）。
 
 | 项 | 位置 |
 |---|---|
 | 上游仓库 | https://github.com/ReynArts/ApexSenseBridge |
 | 上游许可证 | GNU GPL v3.0-or-later |
-| 便携包中的 `engine/ApexSenseBridge.exe` | 取自上游官方 v0.6.3 Portable 发布包，未重新编译 |
+| 便携包中的 `engine/ApexSenseBridge.exe` | 取自上游官方 v1.0.0-beta.9 Portable 发布包，未重新编译 |
 
 > 也就是说：**DIA 发布包里没有任何「既不属于 DIA 源码、也不属于上游源码」的二进制**。
 > 唯一的例外是 P4 捆绑的第三方驱动安装器（USBip / HidHide），
@@ -52,8 +52,8 @@ dotnet build DsInApex.sln -c Release -p:Platform=x64
 powershell -File build\make-portable.ps1
 ```
 
-引擎二进制不需要自行编译：从上游官方 v0.6.3 Portable 发布包取用即可，
-解压到 `vendor\portable-0.6.3\ApexSenseBridge-Portable\`（该目录不入版本控制）。
+引擎二进制不需要自行编译：从上游官方 v1.0.0-beta.9 Portable 发布包取用即可，
+解压到 `vendor\portable-1.0.0-beta.9\ApexSenseBridge-Portable\`（该目录不入版本控制）。
 若确实要自行编译引擎，按上游仓库的 CMake 流程在 `engine/` 内构建。
 
 ## 4. 便携版的「卸载」

@@ -229,7 +229,15 @@ public static partial class LocalizationAuditService
         string[] files;
         try
         {
-            files = Directory.GetFiles(xamlDirectory, "*.xaml", SearchOption.AllDirectories);
+            // ⚠️ 必须排除「不属于本产品 UI」的 XAML（见 IsForeignXaml）：
+            //    engine\ApexSenseBridgeTray\*.xaml 是上游 WPF 托盘，
+            //    obj\ 下还有 XAML 编译中间产物。它们里面的写死文案会被当成
+            //    DIA 的「疑似漏绑」噪声报出来（实测 144 处里有相当一部分来自这里），
+            //    把真缺陷淹掉。
+            files = Directory
+                .GetFiles(xamlDirectory, "*.xaml", SearchOption.AllDirectories)
+                .Where(path => !IsForeignXaml(path))
+                .ToArray();
         }
         catch (Exception ex)
         {
@@ -334,7 +342,7 @@ public static partial class LocalizationAuditService
         notes.Add($"loc 绑定抽查     : {boundCount} 处，键缺失 {missingKeyCount} 处");
         notes.Add($"疑似漏绑(写死)   : {hardcodedCount} 处");
 
-        // ⚠️ 源码腿只对「键缺失」判失败。
+        // ⚠️ 只对「键缺失」判失败。
         // 写死文案一律只是可疑项：语言选择器的「简体中文 / English」、
         // 品牌名、技术型号都是合法的写死文案，判失败会逼人加例外名单，
         // 最后整个检查就没人看了 —— 那比漏报更糟。
@@ -343,7 +351,43 @@ public static partial class LocalizationAuditService
                           or LocalizationAuditIssueKind.MissingInEn
                           or LocalizationAuditIssueKind.MissingInZhCN);
 
-        return (true, findings, hasMissingKey, notes);
+        // 🔴 第三位是 Passed，语义为「通过」—— 必须取反。
+        // 早先这里直接传了 hasMissingKey，等于把结论写反：
+        // 没有缺失键时反而报「未通过」。因为 P8 的验收一律在便携包里跑
+        // （源码腿此时降级跳过），这条路径从没被走到过，所以一直没暴露。
+        return (true, findings, !hasMissingKey, notes);
+    }
+
+    /// <summary>
+    /// 这个 XAML 是否「不属于本产品 UI」——上游引擎的 WPF 源码，或构建中间产物。
+    ///
+    /// <para>
+    /// 源码腿的扫描根是<b>仓库根</b>，递归下去会命中：
+    /// <list type="bullet">
+    /// <item><c>engine\ApexSenseBridgeTray\*.xaml</c> —— 上游 WPF 托盘（10 个文件），
+    /// 它的文案体系与 DIA 的 <c>loc:Localize</c> 无关；</item>
+    /// <item><c>obj\</c> / <c>bin\</c> —— XAML 编译中间产物与输出副本，同一份源码被数两遍。</item>
+    /// </list>
+    /// 放它们进来只会制造噪声（实测开发树里 79 个文件，其中真正的 DIA UI 只有 10 个）。
+    /// </para>
+    /// </summary>
+    private static bool IsForeignXaml(string path)
+    {
+        string[] segments = path.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (string segment in segments)
+        {
+            if (segment.Equals("engine", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("bin", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>这个字符串像「用户会读的文案」吗？用于漏绑检测的白名单过滤。</summary>

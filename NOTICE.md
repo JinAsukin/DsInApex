@@ -24,7 +24,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 |---|---|
 | 名称 | ApexSenseBridge |
 | 仓库 | https://github.com/ReynArts/ApexSenseBridge |
-| 基线版本 | v0.6.3（commit `e438507`） |
+| 基线版本 | v1.0.0-beta.9（commit `f17bca8`，dev 分支） |
 | 版权 | Copyright (c) ApexSenseBridge contributors |
 | 许可证 | GNU General Public License v3.0 or later |
 
@@ -41,7 +41,7 @@ Ds in Apex 由「上游 C++ 引擎层（原样保留）」+「全新 WinUI 3 界
 
 1. **引擎层（`engine/`）保持上游源码不变**。
    保留原样是刻意的技术决定：这样上游的引擎缺陷修复可以持续合并跟进。
-   随包分发的 `engine/ApexSenseBridge.exe` 等二进制取自上游官方 v0.6.3 Portable 发布包，**未经重新编译**。
+   随包分发的 `engine/ApexSenseBridge.exe` 等二进制取自上游官方 v1.0.0-beta.9 Portable 发布包，**未经重新编译**。
 2. 上游的 **WPF 托盘界面**（`ApexSenseBridgeTray/`）已被**完整重写**为 WinUI 3 应用，
    因此本作品的界面层**不再与上游同步**。
    → 随包产物**不再包含**上游的 `ApexSenseBridgeTray.exe` / `ApexSenseBridgeControl.exe`

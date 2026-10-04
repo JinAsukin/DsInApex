@@ -445,13 +445,17 @@ public sealed partial class MainWindow : Window
 
             // 面向用户的命令必须齐全。
             // 引擎另有 bridge-triggers（由会话管理器专职驱动）、hidhide-watchdog（内部看门狗）、
-            // help 等，它们不属于本页目录 —— 因此这里断言的是 14 条，而不是引擎的全部命令数。
+            // help 等，它们不属于本页目录 —— 因此这里断言的是 15 条，而不是引擎的全部命令数。
+            //
+            // ⚠️ 断言用的是「条数严格相等」（见下方 catalogComplete），
+            //    所以往 EngineCommandCatalog 里增删命令时**必须同步改这里**，
+            //    否则换引擎（如 1.0.0 新增 test-trigger）后自检会直接报「有缺失」。
             string[] requiredCommands =
             [
                 "list", "identify", "diagnose",
                 "input-status", "xinput-status",
                 "virtual-ds",
-                "test-rt", "test-rumble", "test-profile-switch", "apex4-port-test",
+                "test-rt", "test-trigger", "test-rumble", "test-profile-switch", "apex4-port-test",
                 "clear", "stop-active-sessions", "restore-controller-visibility",
                 "dry-run",
             ];
@@ -950,7 +954,24 @@ public sealed partial class MainWindow : Window
 
             // 兜底清理：进程被任务管理器强杀 / 系统关机时不会走窗口关闭路径，
             // 靠它保证托盘图标被销毁、活动会话被停止（否则手柄会卡在虚拟态）。
-            AppDomain.CurrentDomain.ProcessExit += (_, _) => ShutdownCleanup("process-exit");
+            //
+            // ⚠️ 这里只允许做**瞬时动作**：CLR 会在 ProcessExit 处理器里等代码返回，
+            // 而引擎收尾最长 15 秒 —— 在这条路径上等待就等于让进程"关不掉"。
+            // 因此走 RequestStop（只置停止事件），引擎自身与其 hidhide-watchdog
+            // 会完成还原。
+            AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+            {
+                DetachTrayIcon();
+
+                try
+                {
+                    _session.RequestStop("process-exit");
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Warn(LogFileName, $"进程退出兜底清理失败：{AppLog.Describe(ex)}");
+                }
+            };
 
             // 会话事件可能来自后台线程（启动动作跑在 Task.Run 里），必须回 UI 线程改控件
             _session.SessionStarted += (_, _) => OnUi(UpdateTrayState);
@@ -1238,7 +1259,14 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>菜单每次弹出前同步一次状态，避免事件漏收导致菜单停在旧状态。</summary>
-    private void OnTrayMenuOpening(object sender, object e) => UpdateTrayState();
+    private void OnTrayMenuOpening(object sender, object e)
+    {
+        // 诊断留痕：托盘菜单「弹得出」与「点得动」是两个独立故障点，
+        // 早先验收只数过 Items.Count，从来没有证据区分这两者。
+        // 有这条日志 + 各菜单项的 OnTray*Click 日志，一次复现就能定性。
+        AppLog.Info(LogFileName, "托盘菜单已弹出（Opening 事件触发）");
+        UpdateTrayState();
+    }
 
     private void OnTrayStartBridgeClick(object sender, RoutedEventArgs e)
     {
@@ -1526,15 +1554,15 @@ public sealed partial class MainWindow : Window
     /// <summary>退出清理是否已跑过（防止「点 X 退出」与「托盘退出」两条路径重复清理）。</summary>
     private bool _shuttingDown;
 
-    private void OnTrayExitClick(object sender, RoutedEventArgs e)
+    private async void OnTrayExitClick(object sender, RoutedEventArgs e)
     {
         AppLog.Info(LogFileName, "从托盘菜单退出");
-        ShutdownCleanup("tray-exit");
+        await ShutdownCleanupAsync("tray-exit");
         Application.Current.Exit();
     }
 
     /// <summary>
-    /// 退出前的收尾（P6）。
+    /// 退出前的收尾（P6；2026-10-03 改为异步）。
     ///
     /// <para>
     /// 三件事，缺一不可：
@@ -1546,8 +1574,17 @@ public sealed partial class MainWindow : Window
     /// 鼠标划过之前它都还在，点它没有任何反应。</item>
     /// </list>
     /// </para>
+    ///
+    /// <para>
+    /// 🔴 <b>为什么必须异步：</b>会话停止最长等 15 秒（<see cref="BridgeSession.DefaultStopTimeout"/>，
+    /// 引擎要用这段时间走完 neutralize / restore，<c>apex_original_restored=yes</c> 这个
+    /// 验收硬指标就靠它）。早先的实现直接在 UI 线程上同步等待 ——
+    /// 结果点「退出」后界面整整冻 15 秒，用户看到的现象就是「托盘点了没反应」。
+    /// 现在的分工：<b>瞬时动作（摘图标）留 UI 线程，耗时等待交线程池</b>，
+    /// <c>await</c> 期间 UI 消息循环照常运转。
+    /// </para>
     /// </summary>
-    private void ShutdownCleanup(string reason)
+    private async Task ShutdownCleanupAsync(string reason)
     {
         if (_shuttingDown)
         {
@@ -1555,19 +1592,37 @@ public sealed partial class MainWindow : Window
         }
         _shuttingDown = true;
 
-        try
-        {
-            if (_session.IsSessionActive)
-            {
-                AppLog.Info(LogFileName, $"退出清理：停止活动会话（原因：{reason}）");
-                _session.StopSession(reason);
-            }
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn(LogFileName, $"退出时停止会话失败：{AppLog.Describe(ex)}");
-        }
+        // 1) 立刻摘掉托盘图标 —— 这是用户判断「这次点击生效了」的唯一视觉反馈
+        DetachTrayIcon();
 
+        // 2) 会话停止移交线程池。⚠️ 不可改回同步调用 —— 见上方注释
+        await Task.Run(() =>
+        {
+            try
+            {
+                if (_session.IsSessionActive)
+                {
+                    AppLog.Info(LogFileName, $"退出清理：停止活动会话（原因：{reason}）");
+                    _session.StopSession(reason);
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLog.Warn(LogFileName, $"退出时停止会话失败：{AppLog.Describe(ex)}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// 摘除托盘图标与通知引用。
+    ///
+    /// <para>
+    /// 拆成独立方法是为了让<b>不能阻塞</b>的退出路径（<c>ProcessExit</c>）
+    /// 也能复用这段收尾：它只做瞬时动作，不碰会话等待。
+    /// </para>
+    /// </summary>
+    private void DetachTrayIcon()
+    {
         try
         {
             _notify.DetachTrayIcon();
@@ -1606,8 +1661,12 @@ public sealed partial class MainWindow : Window
         if (!_settings.CloseWindowToTray)
         {
             AppLog.Info(LogFileName, "关闭窗口 = 退出（用户已关闭「隐藏到托盘」）");
-            ShutdownCleanup("window-close");
-            Application.Current.Exit();
+
+            // 先拦下这次关闭：收尾要等引擎还原手柄（最长 15 秒）。
+            // 若放窗口直接销毁，UI 线程连同消息循环一起消失，
+            // 异步收尾就再没有线程能收口（Application.Exit() 也无从调用）。
+            args.Cancel = true;
+            _ = ExitAfterCleanupAsync("window-close");
             return;
         }
 
@@ -1620,6 +1679,15 @@ public sealed partial class MainWindow : Window
             NotificationSeverity.Info,
             LocalizationService.Shared.Get("Loc_NotifyMinimizedTitle"),
             LocalizationService.Shared.Get("Loc_NotifyMinimizedBody"));
+    }
+
+    /// <summary>
+    /// 「关闭窗口 = 退出」这条路径的收尾编排：先异步清理（不阻塞 UI），完成后再退出应用。
+    /// </summary>
+    private async Task ExitAfterCleanupAsync(string reason)
+    {
+        await ShutdownCleanupAsync(reason);
+        Application.Current.Exit();
     }
 
     // ────────────────────────── 导航 ──────────────────────────

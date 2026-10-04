@@ -29,11 +29,11 @@
 
 ## 它和上游是什么关系
 
-本项目是 [`ReynArts/ApexSenseBridge`](https://github.com/ReynArts/ApexSenseBridge) v0.6.3 的**衍生作品**：
+本项目是 [`ReynArts/ApexSenseBridge`](https://github.com/ReynArts/ApexSenseBridge) 的**衍生作品**（初始基于 v0.6.3，自 0.7.1 起引擎基线为 v1.0.0-beta.9）：
 
 | 层 | 处理方式 |
 |---|---|
-| **C++ 引擎** | **保持上游原样**（基线 commit `e438507`），仅作为二进制随包分发，以便持续跟进上游修复 |
+| **C++ 引擎** | **保持上游原样**（基线 commit `f17bca8`，dev 分支），仅作为二进制随包分发，以便持续跟进上游修复 |
 | **用户界面** | 上游的 WPF 托盘界面**整个弃用**，用 **WinUI 3 全量重写**（导航壳 / MVVM / 本地化 / 主题 / 托盘 / 后台行为） |
 | **中文支持** | 上游只有英法两种界面语言。中文是**全新翻译**（120+ 词条），不是补第三份字典 |
 | **交付形态** | 上游为 Inno 安装器；本项目为**便携绿色包**（解压即用、不写安装项、不注册系统服务） |
@@ -160,8 +160,13 @@ powershell -File build\make-portable.ps1
 `build\release\DsInApex-Portable-<版本>.zip` → 打印逐项布局自检结果。
 
 引擎二进制不入版本控制（`vendor/` 在 `.gitignore` 中）。若要自行打包，
-先下载官方 [ApexSenseBridge v0.6.3 Portable 包](https://github.com/ReynArts/ApexSenseBridge/releases)
-解压到 `vendor\portable-0.6.3\ApexSenseBridge-Portable\`。
+先下载官方 [ApexSenseBridge v1.0.0-beta.9 Portable 包](https://github.com/ReynArts/ApexSenseBridge/releases/tag/v1.0.0-beta.9)
+解压到 `vendor\portable-1.0.0-beta.9\ApexSenseBridge-Portable\`。
+
+> ⚠️ **必须取 dev 分支的 beta 版，不能取 stable 的正式版** ——
+> LT/RT 自适应扳机的不对称识别修复只存在于 dev（1.0.0-beta.9 起），
+> stable 的 v0.6.3 仍带该缺陷（右扳机没有阻力）。
+> 引擎与 `engine/` 源码基线的对应关系记录在 `version.json`。
 
 ### 打 Playnite 插件包
 
@@ -207,7 +212,7 @@ SHA256SUMS.txt                包内逐文件校验清单
 src\DsInApex.App\              WinUI 3 主程序（UI / 托盘 / 本地化 / 自检）
 src\DsInApex.Core\             业务逻辑（无 UI 依赖）
 src\DsInApex.Playnite\         Playnite 插件（net462 + Playnite SDK，独立打包为 .pext）
-engine\                        上游 C++ 引擎源码镜像（独立 git，基线 e438507）
+engine\                        上游 C++ 引擎源码镜像（独立 git，基线 f17bca8 / dev 分支）
 build\make-portable.ps1        便携包打包脚本
 build\build-playnite-extension.ps1  Playnite 插件打包脚本
 build\verify-p8.ps1 / verify-p9.ps1 主程序 / 插件验收脚本
@@ -266,9 +271,35 @@ $env:DIA_SELFTEST = '1'; .\DsInApex.exe
 音频触觉的数据源是**「游戏写给虚拟 DualSense 的输出报告」**，不是系统音频回环。
 在扬声器上放音乐、看视频都**不会**让这个数字动。必须在**支持该特性的游戏**里才会出现。
 
-**界面显示的名称为「Flydigi VADER3」**
-这是引擎读到的上游固件遗留字符串（`VID_04B4` 是 Cypress 通用 VID），
-型号判定**不依赖产品名**而是走 `VID_04B4&PID_2412` 实例 ID，功能不受影响。
+**界面显示的名称为「Flydigi VADER3」／硬件测试页提示「降级身份」**
+旧版说明曾写"功能不受影响"，**那条结论是错的**。
+这个字符串是手柄**当前暴露的 USB 身份**，直接决定右扳机能否自适应 —— 详见下一条。
+（型号判定本身确实不依赖产品名，走的是 `VID_04B4&PID_2412` 实例 ID。）
+
+**右扳机（RT）没有自适应，左扳机（LT）正常（APEX 4）**
+这是 **APEX 4 的固件行为，不是 DIA 的缺陷**：同一台手柄有两种 USB 身份，
+而 **VID:PID 两者都是 `04B4:2412`，只能靠产品名与输出报告长度区分**。
+
+| | 降级身份 | 完整身份 |
+|---|---|---|
+| 产品名 | `Flydigi VADER3`（浏览器 WebHID 常显示 `Flydigi Direwolf 3`） | `Flydigi APEX 4` |
+| 输出报告长度 | 32 字节 | 64 字节 |
+| RT 自适应 | ❌ 不生效 | ✅ 生效 |
+| LT 自适应 | ✅ 生效 | ✅ 生效 |
+
+进入完整身份靠的是**物理连接**：接收器（dongle）在位的同时用有线接入，
+或先有线接入再插入接收器（此时手柄强制走有线 DInput）。
+
+⚠️ **完整身份很不稳定：一旦发生桥接会话切换（启动／停止桥接），手柄就会协议退化**，
+退化后 RT 立刻失效，只能重新插拔／切换连接来恢复。
+换言之 **「桥接运行中」与「RT 自适应」目前是互斥的** —— 这是固件限制，DIA 无法绕过。
+硬件测试页会实时显示当前属于哪一种身份，可据此判断。
+
+值得说明的是，引擎在这种状态下**仍会报告成功**：`identify` 恒为 `Apex 4`、
+桥接日志里 LT/RT 指标完全对称、`write_failures=0`、
+`apex4-port-test --forceadapt` 也返回 0 ——
+因为引擎只看命令有没有写出去，而降级身份的固件**收到但不执行** RT 那一条。
+所以判断依据只能是产品名与报告长度，不能看引擎的"成功"。
 
 **开机自启失效了**
 便携版会移动目录。自启项记录的是绝对路径，挪动后即变死链。

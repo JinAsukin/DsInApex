@@ -272,6 +272,7 @@ public sealed class HardwareTestService
             // 测试类命令：只有出现引擎的成功标志句才算真的成功，
             // 避免"退出码 0 但其实没做任何事"被当成通过
             "test-rt" => loc.Get("Loc_HwSummary_TestRt"),
+            "test-trigger" => loc.Get("Loc_HwSummary_TestTrigger"),
             "test-rumble" => loc.Get("Loc_HwSummary_TestRumble"),
             "test-profile-switch" => loc.Get("Loc_HwSummary_ProfileSwitch"),
             "apex4-port-test" => loc.Get("Loc_HwSummary_PortTest"),

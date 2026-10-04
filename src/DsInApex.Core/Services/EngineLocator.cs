@@ -16,7 +16,7 @@ namespace DsInApex.Core.Services;
 /// <list type="number">
 /// <item>环境变量 <c>DSINAPEX_ENGINE_PATH</c>（Spike 期就有的调试开关，保留）</item>
 /// <item><c>&lt;应用目录&gt;\engine\ApexSenseBridge.exe</c> —— 安装后布局</item>
-/// <item>向上回溯祖先目录找 <c>vendor\portable-0.6.3\ApexSenseBridge-Portable\ApexSenseBridge.exe</c>
+/// <item>向上回溯祖先目录找 <c>vendor\portable-1.0.0-beta.9\ApexSenseBridge-Portable\ApexSenseBridge.exe</c>
 /// —— 开发期布局（bin 深度约 7 层，所以要回溯）</item>
 /// <item><c>&lt;应用目录&gt;\ApexSenseBridge.exe</c> —— 引擎与主程序同目录</item>
 /// </list>
@@ -31,8 +31,16 @@ public static class EngineLocator
     /// <summary>环境变量名：直接指定引擎 exe 或所在目录。</summary>
     public const string EnginePathEnvVar = "DSINAPEX_ENGINE_PATH";
 
-    /// <summary>开发期 vendor 布局的相对路径。</summary>
-    private const string VendorRelative = @"vendor\portable-0.6.3\ApexSenseBridge-Portable";
+    /// <summary>
+    /// 开发期 vendor 布局的相对路径。
+    ///
+    /// <para>
+    /// ⚠️ <b>升级引擎时这里必须同步改</b>（2026-10-03：0.6.3 → 1.0.0-beta.9）。
+    /// 下方另有「vendor 下递归兜底」保证改漏了也能找到，但
+    /// <b>多版本并存时递归会取哪一个是不确定的</b> —— 所以别依赖兜底。
+    /// </para>
+    /// </summary>
+    private const string VendorRelative = @"vendor\portable-1.0.0-beta.9\ApexSenseBridge-Portable";
 
     /// <summary>向祖先回溯的最大层数（防御性上限）。</summary>
     private const int MaxAncestorDepth = 8;

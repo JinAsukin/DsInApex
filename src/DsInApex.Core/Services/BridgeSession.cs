@@ -216,6 +216,36 @@ public sealed class BridgeSession : IDisposable
     }
 
     /// <summary>
+    /// 只置停止事件、**不等待**进程退出。
+    ///
+    /// <para>
+    /// 供「进程自身已经在退出路径上」的场景使用（<c>AppDomain.ProcessExit</c>、
+    /// 任务管理器结束进程、系统关机）。那种时刻**绝不能**调 <see cref="StopAndWait"/> ——
+    /// 它会阻塞最长 15 秒，而 CLR 会在 ProcessExit 处理器里等这段代码跑完，
+    /// 结果就是进程看起来「关不掉」。
+    /// </para>
+    ///
+    /// <para>
+    /// 引擎收到 Stop 事件后依然会自行走完 neutralize / restore 流程并退出；
+    /// 即使它中途异常，还有引擎自带的 <c>hidhide-watchdog</c> 兜底恢复手柄可见性
+    /// （属主进程消失即触发）。所以「不等」不会把手柄卡在虚拟态。
+    /// </para>
+    /// </summary>
+    public void RequestStop()
+    {
+        if (disposed) return;
+
+        try
+        {
+            stopEvent.Set();
+        }
+        catch (ObjectDisposedException)
+        {
+            // 事件句柄已随会话释放 —— 没有可通知的对象了
+        }
+    }
+
+    /// <summary>
     /// 请求引擎停止并等待其退出。
     /// <b>正常停止路径</b>：置 Stop 事件 → 等引擎自行走完还原流程；<c>Kill</c> 才是最后手段。
     /// </summary>

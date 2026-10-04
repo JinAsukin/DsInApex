@@ -188,28 +188,59 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch"
-                                    loc:Localize.Key="Loc_HwBtnTestRt"
+                            <!-- 第 0 行：扳机强度档位（对应引擎的 level 参数 1..4）。
+                                 ⚠️ 必须给用户：默认 level 2 很轻，
+                                 「某一侧坏了」和「那一侧太轻没感觉」根本分不开。 -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                                        Orientation="Horizontal" Spacing="8">
+                                <TextBlock loc:Localize.Key="Loc_HwTriggerLevel"
+                                           VerticalAlignment="Center" FontSize="12" />
+                                <ComboBox MinWidth="130"
+                                          SelectedIndex="{x:Bind ViewModel.TriggerLevelIndex, Mode=TwoWay}">
+                                    <ComboBoxItem loc:Localize.Key="Loc_TriggerLevel1" />
+                                    <ComboBoxItem loc:Localize.Key="Loc_TriggerLevel2" />
+                                    <ComboBoxItem loc:Localize.Key="Loc_TriggerLevel3" />
+                                    <ComboBoxItem loc:Localize.Key="Loc_TriggerLevel4" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- 第 1 行：分侧扳机测试。
+                                 ⚠️ 这里刻意排成「左 / 右 / 双侧」三格，而不是一个按钮 ——
+                                 旧版唯一的 test-rt 固定驱动右扳机，
+                                 导致「LT 好还是 RT 坏」在界面上根本无法自证。 -->
+                            <Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
+                                    loc:Localize.Key="Loc_HwBtnTriggerLt"
                                     IsEnabled="{x:Bind ViewModel.CanRunHardwareTest, Mode=OneWay}"
-                                    Command="{x:Bind ViewModel.TestTriggerCommand}" />
-                            <Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                    Command="{x:Bind ViewModel.TestTriggerLeftCommand}" />
+                            <Button Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                    loc:Localize.Key="Loc_HwBtnTriggerRt"
+                                    IsEnabled="{x:Bind ViewModel.CanRunHardwareTest, Mode=OneWay}"
+                                    Command="{x:Bind ViewModel.TestTriggerRightCommand}" />
+                            <Button Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"
+                                    loc:Localize.Key="Loc_HwBtnTriggerBoth"
+                                    IsEnabled="{x:Bind ViewModel.CanRunHardwareTest, Mode=OneWay}"
+                                    Command="{x:Bind ViewModel.TestTriggerBothCommand}" />
+
+                            <Button Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch"
                                     loc:Localize.Key="Loc_HwBtnTestRumble"
                                     IsEnabled="{x:Bind ViewModel.CanRunHardwareTest, Mode=OneWay}"
                                     Command="{x:Bind ViewModel.TestRumbleCommand}" />
 
-                            <Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
+                            <Button Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
                                     loc:Localize.Key="Loc_HwBtnPortTest"
                                     IsEnabled="{x:Bind ViewModel.CanRunHardwareTest, Mode=OneWay}"
                                     Command="{x:Bind ViewModel.PortTestCommand}" />
 
                             <!-- 配置档切换：实测仅 APEX 5 支持，APEX 4 上直接隐藏 -->
-                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6"
+                            <StackPanel Grid.Row="2" Grid.Column="2" Spacing="6"
                                         Visibility="{x:Bind ViewModel.SupportsProfileSwitch, Mode=OneWay}">
                                 <ComboBox HorizontalAlignment="Stretch"
                                           SelectedIndex="{x:Bind ViewModel.ProfileTargetIndex, Mode=TwoWay}">

@@ -1,9 +1,9 @@
 {
-    "version":  "0.7.0",
+    "version":  "0.7.1",
     "releasedAt":  "2026-10-03",
-    "releaseUrl":  "https://github.com/JinAsukin/DsInApex/releases/tag/v0.7.0",
-    "portableAsset":  "https://github.com/JinAsukin/DsInApex/releases/download/v0.7.0/DsInApex-Portable-0.7.0.zip",
-    "notes":  "Ds in Apex 0.7.0（首个便携版）\n· 飞智 APEX 4 → 原生 PS5 DualSense 虚拟化，WinUI 3 原生中文界面\n· 解压即用：运行 DsInApex.exe；首次使用请在「驱动管理」页安装前置驱动并重启\n· 上游引擎基线：ApexSenseBridge 0.6.3 (e438507)",
+    "releaseUrl":  "https://github.com/JinAsukin/DsInApex/releases/tag/v0.7.1",
+    "portableAsset":  "https://github.com/JinAsukin/DsInApex/releases/download/v0.7.1/DsInApex-Portable-0.7.1.zip",
+    "notes":  "Ds in Apex 0.7.1（首个便携版）\n· 飞智 APEX 4 → 原生 PS5 DualSense 虚拟化，WinUI 3 原生中文界面\n· 解压即用：运行 DsInApex.exe；首次使用请在「驱动管理」页安装前置驱动并重启\n· 上游引擎基线：ApexSenseBridge 0.6.3 (e438507)",
     "engineVersion":  "0.6.3",
     "engineBaseline":  "e438507",
     "repository":  "https://github.com/JinAsukin/DsInApex",

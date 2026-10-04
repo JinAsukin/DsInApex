@@ -95,7 +95,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) { $RepoRoot = (Get-Location).Path }
 
 $AppCsproj      = Join-Path $RepoRoot 'src\DsInApex.App\DsInApex.App.csproj'
 $SolutionFile   = Join-Path $RepoRoot 'DsInApex.sln'
-$EngineSource   = Join-Path $RepoRoot 'vendor\portable-0.6.3\ApexSenseBridge-Portable'
+$EngineSource   = Join-Path $RepoRoot 'vendor\portable-1.0.0-beta.9\ApexSenseBridge-Portable'
 $RepoReadme     = Join-Path $RepoRoot 'README.md'
 $RepoVersion    = Join-Path $RepoRoot 'version.json'
 
@@ -261,7 +261,7 @@ Write-Ok "应用与运行时已复制（$(Format-Size (Get-DirSize $PackageDir))
 # 4.2 引擎
 if (-not (Test-Path -LiteralPath $EngineSource)) {
     throw ("找不到引擎目录：$EngineSource`n" +
-           "       vendor\ 不入版本控制（.gitignore），需要先放置官方 0.6.3 portable 包。")
+           "       vendor\ 不入版本控制（.gitignore），需要先放置官方 1.0.0-beta.9 portable 包。")
 }
 
 $engineDst = Join-Path $PackageDir 'engine'
