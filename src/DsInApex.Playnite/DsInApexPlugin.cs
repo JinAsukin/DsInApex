@@ -378,7 +378,34 @@ namespace DsInApex.Playnite
                 arguments.Add(settings.Settings.HapticThresholdPercent.ToString());
             }
 
+            // APEX 4 陀螺仪灵敏度（引擎 1.0.0-beta.10 起，上游 issue #10）。
+            // ⚠️ 只在非默认值时才追加：100 等于引擎默认值，不传与传 100 等价，
+            //    这样旧配置生成的命令行逐字不变（便于与历史日志对照）。
+            // ⚠️ 必须夹紧：用户可在设置里手打任意数字，而引擎对越界值是
+            //    【拒绝启动】而不是忽略 —— 那会让"启动游戏"直接失败。
+            int gyro = ClampGyroPercent(settings.Settings.Apex4GyroStrengthPercent);
+            if (gyro != 100)
+            {
+                arguments.Add("--apex4-gyro-strength");
+                arguments.Add(gyro.ToString());
+            }
+
+            int gyroYaw = ClampGyroPercent(settings.Settings.Apex4GyroYawStrengthPercent);
+            if (gyroYaw != 100)
+            {
+                arguments.Add("--apex4-gyro-yaw-strength");
+                arguments.Add(gyroYaw.ToString());
+            }
+
             return string.Join(" ", arguments);
+        }
+
+        /// <summary>把陀螺仪灵敏度夹到引擎允许的 25–400（区间见 C++ <c>BridgeOptions.cpp</c>）。</summary>
+        private static int ClampGyroPercent(int value)
+        {
+            if (value < 25) return 25;
+            if (value > 400) return 400;
+            return value;
         }
 
         private string ResolveNotFoundMessage(DsInApexSettings value)
@@ -459,9 +486,12 @@ namespace DsInApex.Playnite
             }
 
             Logger.Info("停止桥接会话：" + reason + "。");
-            if (!session.StopAndWait(BridgeSession.DefaultStopTimeout))
+            // ⚠️ 必须用 StopAndEnsureExit 而不是 StopAndWait：协同超时后要有强制回收，
+            // 否则孤儿引擎进程会攥住全局会话锁（上游 issue #15）。
+            if (!session.StopAndEnsureExit(
+                    BridgeSession.DefaultStopTimeout, BridgeSession.ForcedStopOnFailure))
             {
-                Logger.Error("桥接会话在 15 秒内未停止。");
+                Logger.Error("桥接会话在协同超时后未停止，已强制结束本次启动的子进程。");
             }
             session.Dispose();
         }

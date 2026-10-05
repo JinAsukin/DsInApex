@@ -59,9 +59,27 @@ public static partial class EngineOutputParser
         RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex BatteryRegex();
 
-    [GeneratedRegex(@"^Adaptive triggers:\s*(?<value>yes|no)",
+    /// <summary>
+    /// <c>Adaptive triggers:</c> 行的取值。
+    ///
+    /// <para>
+    /// ⚠️ <b>不能只匹配 <c>yes|no</c></b>：引擎 1.0.0-beta.10 起同一行会打印
+    /// <c>partial (degraded 32-byte Apex 4 interface; LT may work, RT unavailable)</c>。
+    /// 老写法匹配不到 → 降级态被静默判成"不支持"，把 #26 的语义从
+    /// "部分可用" 错译成 "完全不可用"。所以这里吞掉整行再分类。
+    /// </para>
+    /// </summary>
+    [GeneratedRegex(@"^Adaptive triggers:\s*(?<value>[^\r\n]*)",
         RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex AdaptiveRegex();
+
+    /// <summary>
+    /// 引擎在降级态给出的处置建议行（<c>Action: reconnect ...</c>）。
+    /// 其余情况不存在 → 解析结果为空串。
+    /// </summary>
+    [GeneratedRegex(@"^Action:\s*(?<text>[^\r\n]+)",
+        RegexOptions.Multiline | RegexOptions.IgnoreCase)]
+    private static partial Regex ActionRegex();
 
     /// <summary>
     /// 解析 <c>identify</c> 的文本输出。
@@ -111,6 +129,7 @@ public static partial class EngineOutputParser
         Match connection = ConnectionRegex().Match(stdout);
         Match battery = BatteryRegex().Match(stdout);
         Match adaptive = AdaptiveRegex().Match(stdout);
+        Match action = ActionRegex().Match(stdout);
 
         LinkMode link = LinkMode.Unknown;
         if (connection.Success)
@@ -138,10 +157,48 @@ public static partial class EngineOutputParser
                 battery.Groups["pct"].Value, CultureInfo.InvariantCulture, out int pct) ? pct : null,
             IsCharging = battery.Success && battery.Groups["charging"].Success,
             // 引擎只有在确实支持时才打印这一行；缺失即视为不支持
-            AdaptiveTriggers = adaptive.Success
-                && adaptive.Groups["value"].Value.Equals("yes", StringComparison.OrdinalIgnoreCase),
+            AdaptiveTriggerState = ClassifyAdaptiveTriggers(
+                adaptive.Success ? adaptive.Groups["value"].Value : string.Empty),
+            AdaptiveTriggerAction = action.Success ? action.Groups["text"].Value.Trim() : string.Empty,
         };
         return true;
+    }
+
+    /// <summary>
+    /// 把 <c>Adaptive triggers:</c> 的取值分类。
+    ///
+    /// <para>引擎 1.0.0-beta.10 实测三种取值：</para>
+    /// <list type="bullet">
+    /// <item><c>yes (full 64-byte Apex 4 interface)</c> → <see cref="ApexTriggerCapability.Full"/></item>
+    /// <item><c>partial (degraded 32-byte Apex 4 interface; LT may work, RT unavailable)</c>
+    ///       → <see cref="ApexTriggerCapability.Partial"/></item>
+    /// <item><c>no</c> → <see cref="ApexTriggerCapability.None"/></item>
+    /// </list>
+    ///
+    /// <para>
+    /// ⚠️ 判定按前缀走，不靠整串相等 —— 引擎在同一行里带括号补充说明，
+    /// 补充文字以后还可能改。缺失或无法识别时返回
+    /// <see cref="ApexTriggerCapability.Unknown"/>（保持"未声明"语义，不臆断为不支持）。
+    /// </para>
+    /// </summary>
+    private static ApexTriggerCapability ClassifyAdaptiveTriggers(string raw)
+    {
+        string value = raw.Trim();
+
+        if (value.StartsWith("partial", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApexTriggerCapability.Partial;
+        }
+        if (value.StartsWith("yes", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApexTriggerCapability.Full;
+        }
+        if (value.StartsWith("no", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApexTriggerCapability.None;
+        }
+
+        return ApexTriggerCapability.Unknown;
     }
 
     // ────────────────────────── JSON 类报告 ──────────────────────────

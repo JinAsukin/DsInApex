@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DsInApex.Core.Localization;
 using DsInApex.Core.Models;
 using DsInApex.Core.Services;
@@ -30,6 +31,13 @@ public partial class SettingsViewModel : ObservableObject
     /// <summary>初始化超时合法区间（秒）。</summary>
     private const int TimeoutMin = 5;
     private const int TimeoutMax = 120;
+
+    /// <summary>
+    /// APEX 4 陀螺仪灵敏度合法区间（引擎契约：25–400）。
+    /// 直接沿用 Core 的常量，避免两处各写一份、日后改动时漏掉一边。
+    /// </summary>
+    private const int GyroMin = EngineSessionManager.GyroPercentMin;
+    private const int GyroMax = EngineSessionManager.GyroPercentMax;
 
     /// <summary>强制持续激活在设置文件中的取值（沿用上游语义：standard / none）。</summary>
     private const string ForcedProfileOn = "standard";
@@ -213,6 +221,91 @@ public partial class SettingsViewModel : ObservableObject
             OnPropertyChanged();
         }
     }
+
+    /// <summary>
+    /// APEX 4 陀螺仪总灵敏度（25–400，100 = 引擎原始标定强度）。
+    ///
+    /// <para>
+    /// 用 <c>double</c> 是为了配合 <c>NumberBox.Value</c>；区间必须与引擎一致，
+    /// 越界会被 C++ 参数解析器拒绝并导致<b>整个桥接启动失败</b>。
+    /// </para>
+    /// </summary>
+    public double Apex4GyroStrength
+    {
+        get => _settings.Apex4GyroStrengthPercent;
+        set
+        {
+            int clamped = Clamp((int)Math.Round(value), GyroMin, GyroMax);
+            if (_settings.Apex4GyroStrengthPercent == clamped) return;
+            _settings.Apex4GyroStrengthPercent = clamped;
+            Save();
+            OnPropertyChanged();
+            NotifyGyroDerived();
+        }
+    }
+
+    /// <summary>APEX 4 陀螺仪 yaw 轴单独修正（25–400，100 = 不修正）。</summary>
+    public double Apex4GyroYawStrength
+    {
+        get => _settings.Apex4GyroYawStrengthPercent;
+        set
+        {
+            int clamped = Clamp((int)Math.Round(value), GyroMin, GyroMax);
+            if (_settings.Apex4GyroYawStrengthPercent == clamped) return;
+            _settings.Apex4GyroYawStrengthPercent = clamped;
+            Save();
+            OnPropertyChanged();
+            NotifyGyroDerived();
+        }
+    }
+
+    /// <summary>两个「派生自陀螺仪取值」的属性 —— 任一档位变化都要一起刷新。</summary>
+    private void NotifyGyroDerived()
+    {
+        OnPropertyChanged(nameof(Apex4GyroIsCustomized));
+        OnPropertyChanged(nameof(Apex4GyroStateText));
+    }
+
+    /// <summary>陀螺仪是否处于非默认取值（用于界面上提示"改了才生效"）。</summary>
+    public bool Apex4GyroIsCustomized
+        => _settings.Apex4GyroStrengthPercent != 100
+        || _settings.Apex4GyroYawStrengthPercent != 100;
+
+    /// <summary>把陀螺仪两档恢复默认（100 / 100）。</summary>
+    [RelayCommand]
+    private void ResetApex4Gyro()
+    {
+        bool changed = false;
+
+        if (_settings.Apex4GyroStrengthPercent != 100)
+        {
+            _settings.Apex4GyroStrengthPercent = 100;
+            changed = true;
+            OnPropertyChanged(nameof(Apex4GyroStrength));
+        }
+
+        if (_settings.Apex4GyroYawStrengthPercent != 100)
+        {
+            _settings.Apex4GyroYawStrengthPercent = 100;
+            changed = true;
+            OnPropertyChanged(nameof(Apex4GyroYawStrength));
+        }
+
+        if (changed)
+        {
+            Save();
+            OnPropertyChanged(nameof(Apex4GyroIsCustomized));
+            OnPropertyChanged(nameof(Apex4GyroStateText));
+        }
+    }
+
+    /// <summary>陀螺仪档位的一句话状态（默认 / 已自定义 + 具体数值）。</summary>
+    public string Apex4GyroStateText => Apex4GyroIsCustomized
+        ? LocalizationService.Shared.Format(
+            "Loc_GyroStateCustom",
+            _settings.Apex4GyroStrengthPercent,
+            _settings.Apex4GyroYawStrengthPercent)
+        : LocalizationService.Shared.Get("Loc_GyroStateDefault");
 
     // ═══════════════ 诊断展示 ═══════════════
 
@@ -484,6 +577,11 @@ public partial class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(RecoverySummary));
         OnPropertyChanged(nameof(RecoveryDetail));
         OnPropertyChanged(nameof(RecoveryRunOnceText));
+        // ⚠️ 新增 VM 侧本地化文案时【必须加到这里】：
+        //    走 {x:Bind} 的计算属性不在 loc 附加属性注册表里，
+        //    P8 本地化审计的控件树腿扫不到它们 —— 漏了不会有任何提示，
+        //    只会表现为"切英文后这一块还是中文"。
+        OnPropertyChanged(nameof(Apex4GyroStateText));
     }
 
     private static int Clamp(int value, int min, int max)

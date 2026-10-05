@@ -95,7 +95,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) { $RepoRoot = (Get-Location).Path }
 
 $AppCsproj      = Join-Path $RepoRoot 'src\DsInApex.App\DsInApex.App.csproj'
 $SolutionFile   = Join-Path $RepoRoot 'DsInApex.sln'
-$EngineSource   = Join-Path $RepoRoot 'vendor\portable-1.0.0-beta.9\ApexSenseBridge-Portable'
+$EngineSource   = Join-Path $RepoRoot 'vendor\portable-1.0.0-beta.10\ApexSenseBridge-Portable'
 $RepoReadme     = Join-Path $RepoRoot 'README.md'
 $RepoVersion    = Join-Path $RepoRoot 'version.json'
 
@@ -104,8 +104,8 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
 }
 
 $RepoSlug   = 'JinAsukin/DsInApex'
-$EngineVer  = '1.0.0-beta.9'
-$EngineBase = 'f17bca8'
+$EngineVer  = '1.0.0-beta.10'
+$EngineBase = 'e129848'
 
 function Write-Step([string] $text) {
     Write-Host ''
@@ -261,7 +261,7 @@ Write-Ok "应用与运行时已复制（$(Format-Size (Get-DirSize $PackageDir))
 # 4.2 引擎
 if (-not (Test-Path -LiteralPath $EngineSource)) {
     throw ("找不到引擎目录：$EngineSource`n" +
-           "       vendor\ 不入版本控制（.gitignore），需要先放置官方 1.0.0-beta.9 portable 包。")
+           "       vendor\ 不入版本控制（.gitignore），需要先放置官方 1.0.0-beta.10 portable 包。")
 }
 
 $engineDst = Join-Path $PackageDir 'engine'
@@ -300,6 +300,37 @@ Get-ChildItem -LiteralPath $EngineSource -Force | ForEach-Object {
 }
 Write-Ok "引擎已复制：$engineCopied 个顶层项（$(Format-Size (Get-DirSize $engineDst))）"
 
+# 4.2.1 引擎版本守门（★ 2026-10-05 新增）
+# 🔴 为什么必须有这一条：换引擎要在【三处】同步改 —— 本文件的 $EngineSource、
+#    $EngineVer（此处上方），以及 src\DsInApex.Core\Services\EngineLocator.cs 的
+#    vendor 目录名。只改源目录而不改 $EngineVer 时，version.json 声明的引擎版本
+#    与实际打包进去的二进制不符，而【编译与打包全绿、零提示】——
+#    0.7.1 真实踩过一次。所以这里直接问二进制"你是谁"，对不上就硬失败。
+$engineExeInPack = Join-Path $engineDst 'ApexSenseBridge.exe'
+if (-not (Test-Path -LiteralPath $engineExeInPack)) {
+    throw "引擎包内没有 ApexSenseBridge.exe：$engineExeInPack"
+}
+
+$engineHelp = ''
+try {
+    # help 是只读命令，不碰硬件；引擎把 Release 行打在输出第二行
+    $engineHelp = (& $engineExeInPack help 2>&1 | Out-String)
+} catch {
+    Write-Warn2 "无法执行引擎 help（$($_.Exception.Message)）→ 跳过版本守门"
+}
+
+if ($engineHelp -match 'Release:\s*(?<ver>[0-9][0-9A-Za-z\.\-]*)') {
+    $packedVer = $Matches['ver'].Trim()
+    if ($packedVer -ne $EngineVer) {
+        throw ("引擎版本不一致：打包进去的是 $packedVer，但 `$EngineVer 声明的是 $EngineVer`n" +
+               "       请把 `$EngineVer / `$EngineBase（本文件）与 EngineLocator.cs 的 vendor 目录名一起改。")
+    }
+    Write-Ok "引擎版本守门通过：包内 ApexSenseBridge.exe 自报 $packedVer"
+} else {
+    $firstLine = ($engineHelp -split "`r?`n" | Where-Object { $_.Trim().Length -gt 0 } | Select-Object -First 1)
+    Write-Warn2 ("引擎 help 输出里没有 Release 行 → 无法守门（输出首行：" + $firstLine + "）")
+}
+
 if ($engineSkip.Count -gt 0) {
     Write-Info "本次剔除 $($engineSkip.Count) 项上游冗余（-KeepEngineTray / -KeepEngineDrivers 可保留）"
 }
@@ -335,7 +366,7 @@ $releaseUrl = "https://github.com/$RepoSlug/releases/tag/$Tag"
 $assetUrl   = "https://github.com/$RepoSlug/releases/download/$Tag/DsInApex-Portable-$Version.zip"
 
 $notesText = @(
-    "Ds in Apex $Version（首个便携版）",
+    "Ds in Apex $Version",
     "· 飞智 APEX 4 → 原生 PS5 DualSense 虚拟化，WinUI 3 原生中文界面",
     "· 解压即用：运行 DsInApex.exe；首次使用请在「驱动管理」页安装前置驱动并重启",
     "· 上游引擎基线：ApexSenseBridge $EngineVer ($EngineBase)"

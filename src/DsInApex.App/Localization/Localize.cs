@@ -365,6 +365,61 @@ public static class Localize
     }
 
     /// <summary>
+    /// 一次「已注册元素」的快照：<b>强引用</b>目标 + 它的键 + 控件类型名。
+    ///
+    /// <para>
+    /// 🔴 <b>为什么必须是强引用（2026-10-05 修）：</b>
+    /// 审计腿原先的做法是「中文调一次 <see cref="SampleApplied"/>、
+    /// 切英文再调一次，然后按 <c>(键, 控件类型)</c> 配对」。
+    /// 但注册表里存的是 <b>弱引用</b>，而每次 <c>SetLanguage</c> 都会触发
+    /// <see cref="RefreshAll"/> 顺手清理已回收的条目 ——
+    /// 只要两次采样之间发生一次 GC，第二次就会少掉一批元素，
+    /// 配对失败被记成 <c>(英文采样缺失)</c>，在报告里表现为
+    /// <b>「该控件类型不在 ApplyAuto 支持列表里，文案被丢弃」</b>的假阳性。
+    /// </para>
+    ///
+    /// <para>
+    /// 实测证据：同一份源码连跑两次，一次 0 条、一次 138 条；元素越多越容易撞上。
+    /// 也就是说这条腿本身是 <b>flaky</b> 的，而它报的"真缺陷"里
+    /// 绝大多数是它自己制造的 —— 这种检查比没有更糟，会把人训练成忽略它。
+    /// </para>
+    ///
+    /// <para>
+    /// 改法：一次性快照出目标集合（此后由调用方持强引用，不可能被回收），
+    /// 再对<b>同一批目标</b>分别读两种语言的取值。两次读值的目标集合恒等，
+    /// 配对逻辑彻底消失，也就没有"缺失"可言。
+    /// </para>
+    /// </summary>
+    public readonly record struct AppliedTarget(DependencyObject Target, string Key, string ControlType);
+
+    /// <summary>
+    /// 快照当前所有可用的已注册元素（带强引用；顺手清掉已回收的条目）。
+    /// 与 <see cref="ReadActual"/> 配套使用：快照 → 切语言 → 逐条读值。
+    /// </summary>
+    public static IReadOnlyList<AppliedTarget> SnapshotTargets()
+    {
+        var result = new List<AppliedTarget>();
+
+        lock (SyncRoot)
+        {
+            for (int i = Registry.Count - 1; i >= 0; i--)
+            {
+                Entry entry = Registry[i];
+
+                if (!entry.Target.TryGetTarget(out DependencyObject? target))
+                {
+                    Registry.RemoveAt(i);   // 控件已回收，顺手清理
+                    continue;
+                }
+
+                result.Add(new AppliedTarget(target, entry.Key, target.GetType().Name));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// 读取注册元素的【实际属性值】而非字典返回值。
     /// 这是验证本地化真的落到控件上、而不是只查了字典的关键手段。
     /// </summary>

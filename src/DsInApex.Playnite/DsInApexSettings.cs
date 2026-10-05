@@ -207,6 +207,8 @@ namespace DsInApex.Playnite
         private string xinputIndex = string.Empty;
         private bool autoCheckUpdates = true;
         private bool enableAutomaticProfiles = true;
+        private int apex4GyroStrengthPercent = 100;
+        private int apex4GyroYawStrengthPercent = 100;
         private DateTime? lastUpdateCheckUtc;
         private List<GameBridgeProfile> profiles = new List<GameBridgeProfile>();
 
@@ -237,6 +239,23 @@ namespace DsInApex.Playnite
         {
             get { return initializationTimeoutSeconds; }
             set { SetValue(ref initializationTimeoutSeconds, value); }
+        }
+
+        /// <summary>
+        /// APEX 4 陀螺仪总灵敏度（%，25–400，100 = 引擎原始标定强度）。
+        /// 上游 issue #10 的引擎侧能力，越界会被 C++ 参数解析器拒绝。
+        /// </summary>
+        public int Apex4GyroStrengthPercent
+        {
+            get { return apex4GyroStrengthPercent; }
+            set { SetValue(ref apex4GyroStrengthPercent, value); }
+        }
+
+        /// <summary>APEX 4 偏航（yaw）轴单独修正（%，25–400，100 = 不修正）。</summary>
+        public int Apex4GyroYawStrengthPercent
+        {
+            get { return apex4GyroYawStrengthPercent; }
+            set { SetValue(ref apex4GyroYawStrengthPercent, value); }
         }
 
         /// <summary>上游遗留字段，仅为迁移旧配置保留，不再使用。</summary>
@@ -674,6 +693,13 @@ namespace DsInApex.Playnite
             if (Settings.InitializationTimeoutSeconds < 5 || Settings.InitializationTimeoutSeconds > 60)
             {
                 errors.Add(Loc.Get("LOCDsInApex_VerifyTimeoutRange"));
+            }
+            // ⚠️ 25–400 是引擎硬边界（engine/src/cli/BridgeOptions.cpp）：
+            //    越界不是"被忽略"，而是【整个桥接启动失败】——必须在这里拦住。
+            if (Settings.Apex4GyroStrengthPercent < 25 || Settings.Apex4GyroStrengthPercent > 400 ||
+                Settings.Apex4GyroYawStrengthPercent < 25 || Settings.Apex4GyroYawStrengthPercent > 400)
+            {
+                errors.Add(Loc.Get("LOCDsInApex_VerifyGyroRange"));
             }
 
             return errors.Count == 0;

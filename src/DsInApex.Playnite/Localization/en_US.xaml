@@ -48,6 +48,11 @@
   <sys:String x:Key="LOCDsInApex_SettingsEnableRumble">Enable grip rumble and audio haptics</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsHapticThreshold">Haptic threshold (%)</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsInitTimeout">Initialization timeout (s)</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyro">APEX 4 gyroscope</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroHint">Applies to the Flydigi APEX 4 only. 100% is the engine's capture-derived calibration; scale it up or down from there. Restart the bridge (re-enter the game) for changes to take effect.</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroStrength">Overall sensitivity (%)</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroYawStrength">Yaw correction (%)</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroRangeTooltip">Valid range is 25-400; 100 means no extra scaling. Out-of-range values are rejected by the engine and the bridge will not start.</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsOverrides">Manual overrides</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsOverridesHint">The list stays empty while everything is automatic. Right-click a game → Ds in Apex to set activation, touchpad remapping and the onboard APEX profile separately.</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsColumnGame">Game</sys:String>
@@ -86,6 +91,7 @@ Open the download page now?</sys:String>
   <sys:String x:Key="LOCDsInApex_VerifyDeployRootNotFound">Ds in Apex was not found. Deploy it, or select DsInApex.exe in the extension settings.</sys:String>
   <sys:String x:Key="LOCDsInApex_VerifyHapticRange">The haptic threshold must be between 0 and 95.</sys:String>
   <sys:String x:Key="LOCDsInApex_VerifyTimeoutRange">The initialization timeout must be between 5 and 60 seconds.</sys:String>
+  <sys:String x:Key="LOCDsInApex_VerifyGyroRange">The gyroscope sensitivity must be between 25 and 400 (100 is the default).</sys:String>
 
   <!-- ── 更新检查错误 ── -->
   <sys:String x:Key="LOCDsInApex_ErrBadTag">Could not parse the release tag: {0}</sys:String>

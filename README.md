@@ -29,11 +29,11 @@
 
 ## 它和上游是什么关系
 
-本项目是 [`ReynArts/ApexSenseBridge`](https://github.com/ReynArts/ApexSenseBridge) 的**衍生作品**（初始基于 v0.6.3，自 0.7.1 起引擎基线为 v1.0.0-beta.9）：
+本项目是 [`ReynArts/ApexSenseBridge`](https://github.com/ReynArts/ApexSenseBridge) 的**衍生作品**（初始基于 v0.6.3，自 0.7.1 起引擎基线为 v1.0.0-beta.9，自 **0.7.2 起为 v1.0.0-beta.10**）：
 
 | 层 | 处理方式 |
 |---|---|
-| **C++ 引擎** | **保持上游原样**（基线 commit `f17bca8`，dev 分支），仅作为二进制随包分发，以便持续跟进上游修复 |
+| **C++ 引擎** | **保持上游原样**（基线 commit `e129848`，dev 分支 HEAD = v1.0.0-beta.10），仅作为二进制随包分发，以便持续跟进上游修复 |
 | **用户界面** | 上游的 WPF 托盘界面**整个弃用**，用 **WinUI 3 全量重写**（导航壳 / MVVM / 本地化 / 主题 / 托盘 / 后台行为） |
 | **中文支持** | 上游只有英法两种界面语言。中文是**全新翻译**（120+ 词条），不是补第三份字典 |
 | **交付形态** | 上游为 Inno 安装器；本项目为**便携绿色包**（解压即用、不写安装项、不注册系统服务） |
@@ -160,13 +160,18 @@ powershell -File build\make-portable.ps1
 `build\release\DsInApex-Portable-<版本>.zip` → 打印逐项布局自检结果。
 
 引擎二进制不入版本控制（`vendor/` 在 `.gitignore` 中）。若要自行打包，
-先下载官方 [ApexSenseBridge v1.0.0-beta.9 Portable 包](https://github.com/ReynArts/ApexSenseBridge/releases/tag/v1.0.0-beta.9)
-解压到 `vendor\portable-1.0.0-beta.9\ApexSenseBridge-Portable\`。
+先下载官方 [ApexSenseBridge v1.0.0-beta.10 Portable 包](https://github.com/ReynArts/ApexSenseBridge/releases/tag/v1.0.0-beta.10)
+解压到 `vendor\portable-1.0.0-beta.10\ApexSenseBridge-Portable\`。
 
 > ⚠️ **必须取 dev 分支的 beta 版，不能取 stable 的正式版** ——
 > LT/RT 自适应扳机的不对称识别修复只存在于 dev（1.0.0-beta.9 起），
-> stable 的 v0.6.3 仍带该缺陷（右扳机没有阻力）。
+> 而「降级 32 字节 USB 身份」的识别则要 **1.0.0-beta.10 起**才有
+> （上游 issue #26，见下方「引擎升级」一节）；
+> stable 的 v0.6.3 两者都没有（右扳机没有阻力，且降级态被误报成支持）。
 > 引擎与 `engine/` 源码基线的对应关系记录在 `version.json`。
+> ⚠️ `make-portable.ps1` 现在自带**引擎版本守门**：会执行包内
+> `engine\ApexSenseBridge.exe help` 并比对 `$EngineVer`，不一致直接失败 ——
+> 这条守门就是为了防止"只改源目录、忘改版本号"的静默错配。
 
 ### 打 Playnite 插件包
 
@@ -212,7 +217,7 @@ SHA256SUMS.txt                包内逐文件校验清单
 src\DsInApex.App\              WinUI 3 主程序（UI / 托盘 / 本地化 / 自检）
 src\DsInApex.Core\             业务逻辑（无 UI 依赖）
 src\DsInApex.Playnite\         Playnite 插件（net462 + Playnite SDK，独立打包为 .pext）
-engine\                        上游 C++ 引擎源码镜像（独立 git，基线 f17bca8 / dev 分支）
+engine\                        上游 C++ 引擎源码镜像（独立 git，基线 e129848 / dev 分支）
 build\make-portable.ps1        便携包打包脚本
 build\build-playnite-extension.ps1  Playnite 插件打包脚本
 build\verify-p8.ps1 / verify-p9.ps1 主程序 / 插件验收脚本
@@ -289,6 +294,20 @@ $env:DIA_SELFTEST = '1'; .\DsInApex.exe
 
 进入完整身份靠的是**物理连接**：接收器（dongle）在位的同时用有线接入，
 或先有线接入再插入接收器（此时手柄强制走有线 DInput）。
+
+**自 0.7.2 起不用再靠产品名猜了**：引擎（上游 v1.0.0-beta.10，issue #26）已能区分两种接口，
+
+```
+Adaptive triggers: yes (full 64-byte Apex 4 interface)                      ← 完整
+Adaptive triggers: partial (degraded 32-byte Apex 4 interface; LT may work, RT unavailable)
+Action: reconnect the controller/receiver until this command reports the full 64-byte Apex 4 interface.
+```
+
+硬件测试页的「设备身份」会把三态直接翻译成中文展示（完整 / 部分 / 不支持），
+并在降级态原样带出引擎给的处置建议。**判断依据是引擎报的接口形态，不再是猜测。**
+
+> 在此之前（0.6.3 ~ 0.7.1 的引擎）降级态会被 `identify` 报成 `Adaptive triggers: yes` ——
+> 即"支持"，而 RT 实际没反应。这正是 issue #26 描述的假阳性。
 
 ⚠️ **完整身份很不稳定：一旦发生桥接会话切换（启动／停止桥接），手柄就会协议退化**，
 退化后 RT 立刻失效，只能重新插拔／切换连接来恢复。

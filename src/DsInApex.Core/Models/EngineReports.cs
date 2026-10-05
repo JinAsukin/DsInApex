@@ -12,14 +12,53 @@ public enum LinkMode
 }
 
 /// <summary>
+/// APEX 4 扳机接口能力。
+///
+/// <para>
+/// 🔴 <b>引擎 1.0.0-beta.10 起才可区分</b>（上游 issue #26）。同一个
+/// <c>VID_04B4&amp;PID_2412</c> 会暴露两种输出报告长度不同的身份：
+/// <b>64 字节</b>（完整，左右扳机都能 FORCEADAPT）与
+/// <b>32 字节</b>（降级，HID 写入会成功但 RT 固件路径没实现 ——
+/// 即"写入不报错但扳机没反应"的经典假阳性）。
+/// </para>
+///
+/// <para>
+/// ⚠️ 降级态下 LT 与震动仍然可用，所以引擎<b>刻意不阻断全部输出</b>，
+/// 只把它标成 partial 并提示重新接入 —— 界面文案也必须照此口径，
+/// 不能简单地说"不支持自适应扳机"。
+/// </para>
+/// </summary>
+public enum ApexTriggerCapability
+{
+    /// <summary>引擎未打印该行，或机型不是 APEX 4 —— 无从判断。</summary>
+    Unknown = 0,
+
+    /// <summary>完整 64 字节接口：左右扳机自适应均可用。</summary>
+    Full,
+
+    /// <summary>降级 32 字节接口：LT 可能可用，RT 不可用。</summary>
+    Partial,
+
+    /// <summary>引擎明确报 no。</summary>
+    None,
+}
+
+/// <summary>
 /// <c>identify</c> 命令解析出的手柄身份。
 ///
-/// <para>对应引擎文本（2026-10-03 实测）：</para>
+/// <para>对应引擎文本（2026-10-03 实测，beta.9）：</para>
 /// <code>
 /// Verified: Apex 4 (k2, DeviceType 84, firmware 0x6837)
 /// Connection: dongle (raw 0)
 /// Battery level: 85 (charging)      ← 有电量信息时才出现
 /// Adaptive triggers: yes
+/// </code>
+///
+/// <para>引擎 1.0.0-beta.10 起同一行的取值扩展为三种（实测 2026-10-05）：</para>
+/// <code>
+/// Adaptive triggers: yes (full 64-byte Apex 4 interface)
+/// Adaptive triggers: partial (degraded 32-byte Apex 4 interface; LT may work, RT unavailable)
+/// Action: reconnect the controller/receiver until this command reports the full 64-byte Apex 4 interface.
 /// </code>
 /// </summary>
 public sealed class ApexIdentity
@@ -48,8 +87,32 @@ public sealed class ApexIdentity
     /// <summary>是否正在充电。</summary>
     public bool IsCharging { get; init; }
 
-    /// <summary>是否支持自适应扳机（引擎固定报 yes，保留字段以便未来变化）。</summary>
-    public bool AdaptiveTriggers { get; init; }
+    /// <summary>
+    /// 自适应扳机能力（引擎 1.0.0-beta.10 起可区分完整 / 降级 / 不支持）。
+    ///
+    /// <para>
+    /// beta.9 及更早只有一个 yes/no，降级身份会被误报成 <c>yes</c> ——
+    /// 用户看到"支持"但 RT 没反应，这正是 issue #26 的核心。
+    /// </para>
+    /// </summary>
+    public ApexTriggerCapability AdaptiveTriggerState { get; init; } = ApexTriggerCapability.Unknown;
+
+    /// <summary>
+    /// 引擎给出的处置建议（beta.10 起在降级态随 <c>Action:</c> 行打印；
+    /// 其余情况为空串）。保留引擎原文，界面按需展示。
+    /// </summary>
+    public string AdaptiveTriggerAction { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 是否支持自适应扳机。
+    ///
+    /// <para>
+    /// ⚠️ <b>严格要求 <see cref="ApexTriggerCapability.Full"/> 才为 <c>true</c></b>：
+    /// 降级态下 RT 不可用，报 <c>true</c> 会回到 #26 的假阳性。
+    /// 需要区分"部分可用"的场景请直接读 <see cref="AdaptiveTriggerState"/>。
+    /// </para>
+    /// </summary>
+    public bool AdaptiveTriggers => AdaptiveTriggerState == ApexTriggerCapability.Full;
 
     /// <summary>是否为 APEX 4 机型（决定界面上哪些测试可用）。</summary>
     public bool IsApex4 => ModelName.Contains("Apex 4", StringComparison.OrdinalIgnoreCase);

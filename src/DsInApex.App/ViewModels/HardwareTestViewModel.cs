@@ -511,9 +511,32 @@ public partial class HardwareTestViewModel : ObservableObject
             identity.BatteryPercent is { } percent
                 ? $"{percent}%" + (identity.IsCharging ? " " + _loc.Get("Loc_HwCharging") : string.Empty)
                 : string.Empty);
-        Add("Loc_HwField_AdaptiveTriggers",
-            identity.AdaptiveTriggers ? _loc.Get("Loc_HwYes") : _loc.Get("Loc_HwNo"));
+        Add("Loc_HwField_AdaptiveTriggers", AdaptiveTriggerText(identity));
+
+        // 降级态下引擎会随 Action: 行给出「怎么修」——原文照搬，别改写。
+        if (identity.AdaptiveTriggerAction.Length > 0)
+        {
+            Add("Loc_HwField_Action", identity.AdaptiveTriggerAction);
+        }
     }
+
+    /// <summary>
+    /// 把自适应扳机能力翻成界面文案。
+    ///
+    /// <para>
+    /// 🔴 必须区分三态而不是布尔：引擎 1.0.0-beta.10 起（上游 issue #26）
+    /// 降级 32 字节接口会报 <c>partial</c> —— 此时 <b>LT 与震动仍然可用，只有 RT 不生效</b>。
+    /// 若沿用旧的 yes/no 展示，用户会得到"不支持"的错误结论，进而误以为整支手柄废了。
+    /// </para>
+    /// </summary>
+    private string AdaptiveTriggerText(ApexIdentity identity) => identity.AdaptiveTriggerState switch
+    {
+        ApexTriggerCapability.Full => _loc.Get("Loc_HwAdaptiveFull"),
+        ApexTriggerCapability.Partial => _loc.Get("Loc_HwAdaptivePartial"),
+        ApexTriggerCapability.None => _loc.Get("Loc_HwNo"),
+        // Unknown：引擎没打印该行（beta.9 及更早的旧引擎，或非 APEX 4 机型）
+        _ => _loc.Get("Loc_HwAdaptiveUnknown"),
+    };
 
     private void FillInputStatusLines(InputStatusReport input)
     {

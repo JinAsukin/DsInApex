@@ -64,6 +64,21 @@ public sealed class BridgeSession : IDisposable
     /// </summary>
     public static readonly TimeSpan DefaultStopTimeout = TimeSpan.FromSeconds(15);
 
+    /// <summary>
+    /// <b>启动失败路径</b>专用的协同停止等待（远短于 <see cref="DefaultStopTimeout"/>）。
+    ///
+    /// <para>
+    /// 为什么可以短：这条路径上引擎<b>从未报告过 Ready</b>，
+    /// 也就不存在"需要时间把手柄从虚拟态还原"的前提 —— 它要么还在初始化、
+    /// 要么已经卡死。为它等满 15 秒只会让"点一下启动 → 卡 15 秒 → 失败"的体感更糟。
+    /// 上游 issue #15 的修复用的也是 (3s, 5s) 这一对量级。
+    /// </para>
+    /// </summary>
+    public static readonly TimeSpan CooperativeStopOnFailure = TimeSpan.FromSeconds(3);
+
+    /// <summary>强制结束后等待子进程真正消失的时间（配合 <see cref="CooperativeStopOnFailure"/>）。</summary>
+    public static readonly TimeSpan ForcedStopOnFailure = TimeSpan.FromSeconds(5);
+
     private readonly Action<string> logInfo;
     private readonly Action<string> logError;
     private readonly EventWaitHandle readyEvent;
@@ -194,7 +209,11 @@ public sealed class BridgeSession : IDisposable
 
             if (!session.WaitUntilReady(timeout, out error))
             {
-                session.StopAndWait(DefaultStopTimeout);
+                // ⚠️ 这里【不能】只 StopAndWait：启动超时的引擎子进程恰恰是
+                // 「最有可能不响应 Stop 事件」的那一类（上游 issue #15）。
+                // 协同停不下来时必须强制回收，否则孤儿进程会攥住全局会话锁，
+                // 让之后每一次启动都误判成"外部会话正在运行"。
+                session.StopAndEnsureExit(CooperativeStopOnFailure, ForcedStopOnFailure);
                 session.Dispose();
                 return null;
             }
@@ -206,12 +225,36 @@ public sealed class BridgeSession : IDisposable
             error = Loc("Loc_ErrBridgeStartFailed") + exception.Message;
             logError?.Invoke(error);
 
+            // 同上：异常路径也可能留下已经起了一半的子进程，先杀掉再放句柄。
+            KillQuietly(process);
             process?.Dispose();
             view?.Dispose();
             mapping?.Dispose();
             stop?.Dispose();
             ready?.Dispose();
             return null;
+        }
+    }
+
+    /// <summary>异常清理路径：尽力结束子进程，任何失败都不再抛出（此时已在收尾）。</summary>
+    private static void KillQuietly(Process? target)
+    {
+        if (target is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!target.HasExited)
+            {
+                target.Kill();
+                target.WaitForExit((int)ForcedStopOnFailure.TotalMilliseconds);
+            }
+        }
+        catch
+        {
+            // 已经退出 / 句柄失效 / 权限不足 —— 收尾阶段没有比"继续 Dispose"更好的处理
         }
     }
 
@@ -276,6 +319,57 @@ public sealed class BridgeSession : IDisposable
             logError?.Invoke(Loc("Loc_ErrBridgeStopFailed") + exception.Message);
             return false;
         }
+    }
+
+    /// <summary>
+    /// 协同停止超时后，强制结束<b>本会话自己启动的那一个</b>子进程。
+    ///
+    /// <para>
+    /// 🔴 <b>为什么必须有这个方法（上游 issue #15，我们同款缺陷）：</b>
+    /// 启动阶段超时或异常时，如果只是 <c>Dispose()</c> 掉 <see cref="Process"/> 句柄，
+    /// 那个<b>没响应 Stop 事件的引擎子进程会成为孤儿</b> —— 它手上还攥着全局会话锁
+    /// <c>Local\ApexSenseBridge.ActiveSession.Owner.v1</c>，于是此后每一次启动
+    /// 都会被判成"已有外部会话在跑"，用户看到的是"手柄突然再也连不上了"。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ 作用域严格限定在<b>由本对象启动的那个进程</b>（不按名字扫、不扫全系统）：
+    /// 既避免误杀用户自己开的桥接，也避免误杀飞智空间站之类的无关进程。
+    /// </para>
+    ///
+    /// <para>
+    /// 返回值语义与上游一致：<c>true</c> = 协同停止成功；
+    /// <c>false</c> = 走了强制路径（调用方应据此报告"非干净退出"），
+    /// 但不代表失败 —— 手柄可见性由引擎自带的 <c>hidhide-watchdog</c> 兜底恢复。
+    /// </para>
+    /// </summary>
+    /// <param name="cooperativeTimeout">先给引擎自行收尾的时间。</param>
+    /// <param name="forcedTimeout">强制结束后等待进程真正消失的时间。</param>
+    public bool StopAndEnsureExit(TimeSpan cooperativeTimeout, TimeSpan forcedTimeout)
+    {
+        if (StopAndWait(cooperativeTimeout))
+        {
+            return true;
+        }
+
+        try
+        {
+            if (!process.HasExited)
+            {
+                logError?.Invoke(Loc("Loc_ErrBridgeStopForced"));
+                process.Kill();
+                if (!process.WaitForExit((int)forcedTimeout.TotalMilliseconds))
+                {
+                    logError?.Invoke(Loc("Loc_ErrBridgeStopForcedStuck"));
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            logError?.Invoke(Loc("Loc_ErrBridgeStopForcedError") + exception.Message);
+        }
+
+        return false;
     }
 
     private bool WaitUntilReady(TimeSpan timeout, out string? error)

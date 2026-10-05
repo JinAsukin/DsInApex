@@ -18,5 +18,7 @@ using System.Runtime.InteropServices;
 // 沿用上游 GUID：让升级安装的插件身份稳定（配置目录名随之变化见 docs/16）。
 [assembly: Guid("e41b1737-6753-4b59-bc65-4fdd6a7df7f4")]
 
-[assembly: AssemblyVersion("0.7.0.0")]
-[assembly: AssemblyFileVersion("0.7.0.0")]
+// ⚠️ 与 extension.yaml 的 Version 及仓库 version.json 必须同源 ——
+//    build\verify-p9.ps1 的 S2 会强制校验（AssemblyVersion 前缀 + version.json 等值）。
+[assembly: AssemblyVersion("0.7.2.0")]
+[assembly: AssemblyFileVersion("0.7.2.0")]

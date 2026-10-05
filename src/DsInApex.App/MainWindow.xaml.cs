@@ -495,6 +495,34 @@ public sealed partial class MainWindow : Window
                          $" 解析={(xinputProbe.IsParsed ? "成功" : "降级原始文本")}" +
                          $" 槽位={xinputSlotCount}");
 
+            // identify：只读身份交换（不要求手柄在位，与 list 口径一致）
+            EngineCommandOutcome identifyProbe = await hardwareSvc.RunAsync("identify");
+            if (identifyProbe.Parsed is ApexIdentity probedIdentity)
+            {
+                SelfTest.Log($"  identify      退出码={identifyProbe.ExitCode}" +
+                             $" 机型={probedIdentity.ModelName} 固件={probedIdentity.Firmware}" +
+                             $" 连接={probedIdentity.Link} 扳机={probedIdentity.AdaptiveTriggerState}" +
+                             $" 处置建议={(probedIdentity.AdaptiveTriggerAction.Length > 0 ? "有" : "无")}");
+            }
+            else
+            {
+                SelfTest.Log($"  identify      退出码={identifyProbe.ExitCode}" +
+                             $" 解析={(identifyProbe.IsParsed ? "无身份（可能未插手柄）" : "降级原始文本")}" +
+                             $" 结论={identifyProbe.Summary}");
+            }
+
+            // ── 自适应扳机三态解析契约（★ 2026-10-05 新增，不依赖手柄在位） ──
+            // 上游 issue #26：引擎 1.0.0-beta.10 起把「降级 32 字节接口」单独报成 partial(...)。
+            // 我们的正则此前只认 yes|no，会把 partial 静默判成"不支持"——
+            // 语义从"部分可用（LT 与震动仍好）"错成"完全不可用"，正是 #26 本身。
+            // 这里用三条**实测原文**的合成样本把映射钉死：纯字符串、无副作用、恒可跑。
+            (bool adaptiveContractOk, IReadOnlyList<string> adaptiveContractLines) =
+                CheckAdaptiveTriggerContract();
+            foreach (string line in adaptiveContractLines)
+            {
+                SelfTest.Log(line);
+            }
+
             // PnP 拓扑：诊断链路的核心（WMI 查设备 + 注册表读容器 ID）
             string probeRoot = Path.GetTempPath();
             PnpDiagnostics pnpProbe = new PnpTopologyCollector().Collect(probeRoot);
@@ -524,7 +552,8 @@ public sealed partial class MainWindow : Window
                 && listProbe.ExitCode is 0 or 2        // 2 = 没插手柄，属正常结果
                 && diagnoseProbe.IsParsed
                 && xinputProbe.IsParsed
-                && pnpProbe.Available;
+                && pnpProbe.Available
+                && adaptiveContractOk;                 // 扳机三态解析契约（见 CheckAdaptiveTriggerContract）
 
             SelfTest.Log($"  硬件测试/诊断判定 = {(hardwareOk ? "通过" : "未通过")}");
 
@@ -795,30 +824,36 @@ public sealed partial class MainWindow : Window
                 await Task.Delay(220);
                 pagesSampled++;
 
-                // 中文采样
+                // ── 中文快照（目标集合 + 中文取值，一次拿全） ──
+                // 🔴 这里必须用 SnapshotTargets（强引用）而不是 SampleApplied：
+                //    注册表存的是弱引用，且 SetLanguage 会触发 RefreshAll 清理已回收条目。
+                //    若"中文采一次、英文再采一次"，两次之间一次 GC 就会让英文侧少掉一批元素，
+                //    被记成 (英文采样缺失) 并当成"控件类型不支持"的假阳性 ——
+                //    实测同一份源码一次 0 条、一次 138 条（flaky）。
+                //    快照后由本方法持强引用，两语言读的是同一批目标，集合恒等。
                 LocalizationService.Shared.SetLanguage(Langs.ZhCN);
                 await Task.Delay(180);
                 UpdateTrayState();
-                var zhSamples = Localize.SampleApplied();
 
-                // 英文采样
+                IReadOnlyList<Localize.AppliedTarget> snapshot = Localize.SnapshotTargets();
+                var zhValues = new List<string>(snapshot.Count);
+                foreach (Localize.AppliedTarget applied in snapshot)
+                {
+                    zhValues.Add(Localize.ReadActual(applied.Target));
+                }
+
+                // ── 英文：对同一批目标逐条读值 ──
                 LocalizationService.Shared.SetLanguage(Langs.En);
                 await Task.Delay(180);
                 UpdateTrayState();
-                var enSamples = Localize.SampleApplied();
 
-                // 按 (键, 控件类型) 配对 —— 同一个键可能被多个控件类型注册
-                var enIndex = enSamples
-                    .GroupBy(s => (s.Key, s.ControlType))
-                    .ToDictionary(g => g.Key, g => g.First());
-
-                foreach ((string key, string type, string actual) in zhSamples)
+                for (int i = 0; i < snapshot.Count; i++)
                 {
-                    string enActual = enIndex.TryGetValue((key, type), out var hit)
-                        ? hit.Actual
-                        : "(英文采样缺失)";
-
-                    samples.Add(new LocalizationAuditService.AppliedSample(key, type, actual, enActual));
+                    samples.Add(new LocalizationAuditService.AppliedSample(
+                        snapshot[i].Key,
+                        snapshot[i].ControlType,
+                        zhValues[i],
+                        Localize.ReadActual(snapshot[i].Target)));
                 }
             }
 
@@ -1308,6 +1343,122 @@ public sealed partial class MainWindow : Window
         _settings.Save();
 
         AppLog.Info(LogFileName, $"托盘切换自动检测 = {_settings.AutoDetectGames}");
+    }
+
+    /// <summary>
+    /// 自适应扳机三态解析契约自检（纯字符串，不依赖手柄在位）。
+    ///
+    /// <para>
+    /// 🔴 <b>为什么需要它（上游 issue #26）：</b>
+    /// 引擎 1.0.0-beta.10 起，<c>identify</c> 的 <c>Adaptive triggers:</c> 行有三种取值 ——
+    /// 降级 32 字节接口不再报 <c>yes</c>，而是报
+    /// <c>partial (degraded 32-byte Apex 4 interface; LT may work, RT unavailable)</c>，
+    /// 并另起一行 <c>Action:</c> 给出处置建议。
+    /// 我们原先的正则是 <c>^Adaptive triggers:\s*(yes|no)</c>，匹配不到 partial →
+    /// 被静默判成"不支持"，把"LT 仍可用"错译成"整支手柄废了"。
+    /// </para>
+    ///
+    /// <para>
+    /// 三条样本都是 <b>2026-10-05 在本机 APEX 4（固件 0x6837）上实测抄录的原文</b>，
+    /// 不是编造的。跑这一段的成本是零，收益是：引擎哪天再改这行文字，
+    /// 自检会立刻红，而不是等用户发现"扳机怎么不灵了"。
+    /// </para>
+    /// </summary>
+    private static (bool Ok, IReadOnlyList<string> Lines) CheckAdaptiveTriggerContract()
+    {
+        // (样本原文, 期望的三态)
+        (string Raw, ApexTriggerCapability Expected)[] fixtures =
+        [
+            (
+                "Verified: Apex 4 (k2, DeviceType 84, firmware 0x6837)\n" +
+                "Connection: wired (raw 1)\n" +
+                "Adaptive triggers: yes (full 64-byte Apex 4 interface)\n",
+                ApexTriggerCapability.Full
+            ),
+            (
+                "Verified: Apex 4 (k2, DeviceType 84, firmware 0x6837)\n" +
+                "Connection: dongle (raw 0)\n" +
+                "Adaptive triggers: partial (degraded 32-byte Apex 4 interface; LT may work, RT unavailable)\n" +
+                "Action: reconnect the controller/receiver until this command reports the full 64-byte Apex 4 interface.\n",
+                ApexTriggerCapability.Partial
+            ),
+            (
+                "Verified: Apex 5 (k1, DeviceType 85, firmware 0x6900)\n" +
+                "Connection: wired (raw 1)\n" +
+                "Adaptive triggers: no\n",
+                ApexTriggerCapability.None
+            ),
+            // 老引擎（beta.9 及更早）没有括号补充说明的裸 yes 也必须判成 Full
+            (
+                "Verified: Apex 4 (k2, DeviceType 84, firmware 0x6837)\n" +
+                "Connection: dongle (raw 0)\n" +
+                "Adaptive triggers: yes\n",
+                ApexTriggerCapability.Full
+            ),
+        ];
+
+        var lines = new List<string>();
+        int failed = 0;
+
+        foreach ((string raw, ApexTriggerCapability expected) in fixtures)
+        {
+            if (!EngineOutputParser.TryParseIdentity(raw, out ApexIdentity? parsed, out string error)
+                || parsed is null)
+            {
+                failed++;
+                lines.Add($"  × 样本解析失败（期望 {expected}）：{error}");
+                continue;
+            }
+
+            bool ok = parsed.AdaptiveTriggerState == expected;
+            if (!ok)
+            {
+                failed++;
+            }
+
+            lines.Add($"  {(ok ? "√" : "×")} 原文「{FirstLineOfAdaptive(raw)}」→ {parsed.AdaptiveTriggerState}" +
+                      $"（期望 {expected}）");
+        }
+
+        // 降级样本必须同时带出 Action 行（界面要显示"怎么修"）
+        if (EngineOutputParser.TryParseIdentity(fixtures[1].Raw, out ApexIdentity? degraded, out _)
+            && degraded is not null
+            && degraded.AdaptiveTriggerAction.Length == 0)
+        {
+            failed++;
+            lines.Add("  × 降级样本没有解析出 Action: 处置建议");
+        }
+        else if (degraded is not null)
+        {
+            lines.Add("  √ 降级样本带出 Action: 处置建议");
+        }
+
+        // 约定：只有 Full 才算"支持自适应扳机"（Partial 必须为 false，否则回到 #26 的假阳性）
+        bool fullOnly = EngineOutputParser.TryParseIdentity(fixtures[0].Raw, out ApexIdentity? fullOne, out _)
+                        && fullOne is not null && fullOne.AdaptiveTriggers
+                        && EngineOutputParser.TryParseIdentity(fixtures[1].Raw, out ApexIdentity? partOne, out _)
+                        && partOne is not null && !partOne.AdaptiveTriggers;
+        if (!fullOnly)
+        {
+            failed++;
+        }
+        lines.Add($"  {(fullOnly ? "√" : "×")} AdaptiveTriggers 只对完整接口为 true（Partial 必须为 false）");
+
+        lines.Add($"  三态契约        = {(failed == 0 ? "通过" : $"不通过（{failed} 项）")}");
+        return (failed == 0, lines);
+    }
+
+    /// <summary>取样本里 <c>Adaptive triggers:</c> 那一行的内容，仅用于日志可读性。</summary>
+    private static string FirstLineOfAdaptive(string raw)
+    {
+        foreach (string line in raw.Split('\n'))
+        {
+            if (line.StartsWith("Adaptive triggers:", StringComparison.OrdinalIgnoreCase))
+            {
+                return line["Adaptive triggers:".Length..].Trim();
+            }
+        }
+        return "(无该行)";
     }
 
     /// <summary>把动作切回 UI 线程执行。</summary>

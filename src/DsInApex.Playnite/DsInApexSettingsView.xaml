@@ -25,6 +25,9 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="190" />
@@ -123,15 +126,41 @@
                      MaxWidth="100" HorizontalAlignment="Left"
                      Text="{Binding Settings.InitializationTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" />
 
+            <!-- ── APEX 4 陀螺仪（引擎 1.0.0-beta.10，上游 issue #10） ──
+                 区间 25–400 是引擎硬契约：越界会被 C++ 参数解析器拒绝、整个桥接起不来。
+                 文本框这里只做提示，真正的夹紧在 DsInApexPlugin.BuildBridgeArguments。 -->
+            <StackPanel Grid.Row="7" Grid.ColumnSpan="3" Margin="0,4,0,8">
+                <TextBlock FontWeight="SemiBold"
+                           Text="{DynamicResource LOCDsInApex_SettingsGyro}" />
+                <TextBlock Margin="0,4,0,0" Opacity="0.75" TextWrapping="Wrap"
+                           Text="{DynamicResource LOCDsInApex_SettingsGyroHint}" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,4,12,10"
+                       VerticalAlignment="Center"
+                       Text="{DynamicResource LOCDsInApex_SettingsGyroStrength}" />
+            <TextBox Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10"
+                     MaxWidth="100" HorizontalAlignment="Left"
+                     ToolTip="{DynamicResource LOCDsInApex_SettingsGyroRangeTooltip}"
+                     Text="{Binding Settings.Apex4GyroStrengthPercent, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,4,12,10"
+                       VerticalAlignment="Center"
+                       Text="{DynamicResource LOCDsInApex_SettingsGyroYawStrength}" />
+            <TextBox Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10"
+                     MaxWidth="100" HorizontalAlignment="Left"
+                     ToolTip="{DynamicResource LOCDsInApex_SettingsGyroRangeTooltip}"
+                     Text="{Binding Settings.Apex4GyroYawStrengthPercent, UpdateSourceTrigger=PropertyChanged}" />
+
             <!-- ── 手动覆盖 ── -->
-            <StackPanel Grid.Row="7" Grid.ColumnSpan="3" Margin="0,12,0,8">
+            <StackPanel Grid.Row="10" Grid.ColumnSpan="3" Margin="0,12,0,8">
                 <TextBlock FontWeight="SemiBold"
                            Text="{DynamicResource LOCDsInApex_SettingsOverrides}" />
                 <TextBlock Margin="0,4,0,0" Opacity="0.75" TextWrapping="Wrap"
                            Text="{DynamicResource LOCDsInApex_SettingsOverridesHint}" />
             </StackPanel>
 
-            <DataGrid Grid.Row="8" Grid.ColumnSpan="3" MinHeight="180"
+            <DataGrid Grid.Row="11" Grid.ColumnSpan="3" MinHeight="180"
                       AutoGenerateColumns="False" CanUserAddRows="False"
                       CanUserDeleteRows="False" IsReadOnly="True"
                       ItemsSource="{Binding Settings.Profiles}">

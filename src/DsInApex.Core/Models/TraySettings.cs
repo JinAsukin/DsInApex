@@ -55,6 +55,33 @@ public sealed class TraySettings
     public string Theme { get; set; } = "system";
 
     /// <summary>
+    /// APEX 4 陀螺仪总灵敏度（%，25–400）。
+    ///
+    /// <para>
+    /// 100 = 引擎按采捕数据标定的原始强度，不额外缩放。
+    /// 上游 issue #10 的实测结论是「PC 游戏里三轴都有数据但偏弱、尤其 yaw」，
+    /// 因此提供 25–400 的有界全局增益，<b>而不是</b>伪称拿到了出厂标定。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ 引擎侧硬边界就是 25–400，超范围会被 C++ 参数解析器直接拒绝
+    /// （<c>BridgeOptions.cpp</c>：<c>parsed &lt; 25 || parsed &gt; 400</c> → 启动失败）。
+    /// 所以这里与界面都必须夹紧，不能只在 UI 上限制。
+    /// </para>
+    /// </summary>
+    public int Apex4GyroStrengthPercent { get; set; } = 100;
+
+    /// <summary>
+    /// APEX 4 偏航（yaw）轴的单独修正（%，25–400）。
+    ///
+    /// <para>
+    /// 单独一根是因为 APEX 4 的 yaw 走"拆分字节"编码，约束比 pitch/roll 松，
+    /// 用一个统一增益去补会同时把 pitch/roll 推爆。100 = 不额外修正。
+    /// </para>
+    /// </summary>
+    public int Apex4GyroYawStrengthPercent { get; set; } = 100;
+
+    /// <summary>
     /// 关闭窗口时隐藏到托盘而不是退出（P6）。
     ///
     /// <para>

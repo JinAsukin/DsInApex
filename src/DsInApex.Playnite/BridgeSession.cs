@@ -65,6 +65,16 @@ namespace DsInApex.Playnite
         /// </summary>
         internal static readonly TimeSpan DefaultStopTimeout = TimeSpan.FromSeconds(15);
 
+        /// <summary>
+        /// <b>启动失败路径</b>专用的协同停止等待（远短于 <see cref="DefaultStopTimeout"/>）。
+        /// 这条路径上引擎从未报告过 Ready，不存在"需要时间还原手柄"的前提；
+        /// 等满 15 秒只会让"启动 → 卡 15 秒 → 失败"的体感更糟。
+        /// </summary>
+        internal static readonly TimeSpan CooperativeStopOnFailure = TimeSpan.FromSeconds(3);
+
+        /// <summary>强制结束后等待子进程真正消失的时间。</summary>
+        internal static readonly TimeSpan ForcedStopOnFailure = TimeSpan.FromSeconds(5);
+
         private readonly ILogger logger;
         private readonly EventWaitHandle readyEvent;
         private readonly EventWaitHandle stopEvent;
@@ -199,7 +209,9 @@ namespace DsInApex.Playnite
 
                 if (!session.WaitUntilReady(timeout, out error))
                 {
-                    session.StopAndWait(DefaultStopTimeout);
+                    // ⚠️ 见 StopAndEnsureExit 的注释：启动超时的子进程最容易不响应 Stop，
+                    // 只 Dispose 句柄会留下持有全局会话锁的孤儿进程（上游 issue #15）。
+                    session.StopAndEnsureExit(CooperativeStopOnFailure, ForcedStopOnFailure);
                     session.Dispose();
                     return null;
                 }
@@ -211,6 +223,7 @@ namespace DsInApex.Playnite
                 error = Loc.Get("LOCDsInApex_ErrBridgeStartFailed") + " " + exception.Message;
                 logger.Error(exception, error);
 
+                KillQuietly(process);
                 if (process != null) process.Dispose();
                 if (view != null) view.Dispose();
                 if (mapping != null) mapping.Dispose();
@@ -218,6 +231,67 @@ namespace DsInApex.Playnite
                 if (ready != null) ready.Dispose();
                 return null;
             }
+        }
+
+        /// <summary>异常清理路径：尽力结束子进程，任何失败都不再抛出（此时已在收尾）。</summary>
+        private static void KillQuietly(Process target)
+        {
+            try
+            {
+                if (!target.HasExited)
+                {
+                    target.Kill();
+                    target.WaitForExit((int)ForcedStopOnFailure.TotalMilliseconds);
+                }
+            }
+            catch
+            {
+                // 已经退出 / 句柄失效 —— 收尾阶段没有比"继续 Dispose"更好的处理
+            }
+        }
+
+        /// <summary>
+        /// 协同停止超时后，强制结束**本会话自己启动的那一个**子进程。
+        ///
+        /// <para>
+        /// 🔴 上游 issue #15：启动阶段失败时若只 <c>Dispose()</c> 句柄，
+        /// 没响应 Stop 的引擎子进程会变成孤儿并继续持有全局会话锁
+        /// <c>Local\ApexSenseBridge.ActiveSession.Owner.v1</c> —
+        /// 之后每一次启动都会被判成"已有外部会话在运行"。
+        /// 作用域严格限定为本次启动的进程，不按名字扫全系统。
+        /// </para>
+        ///
+        /// <para>
+        /// 返回值：<c>true</c> = 协同停止成功；<c>false</c> = 走了强制路径，
+        /// 调用方应据此报告"非干净退出"。
+        /// </para>
+        /// </summary>
+        internal bool StopAndEnsureExit(TimeSpan cooperativeTimeout, TimeSpan forcedTimeout)
+        {
+            if (StopAndWait(cooperativeTimeout))
+            {
+                return true;
+            }
+
+            try
+            {
+                if (!process.HasExited)
+                {
+                    logger.Error("Ds in Apex did not stop after the IPC request; " +
+                                 "terminating the launched child process to prevent a stale session.");
+                    process.Kill();
+                    if (!process.WaitForExit((int)forcedTimeout.TotalMilliseconds))
+                    {
+                        logger.Error("The launched Ds in Apex child did not exit after forced termination.");
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                logger.Error(exception, "Failed to terminate the stale Ds in Apex child process.");
+            }
+
+            return false;
         }
 
         /// <summary>

@@ -47,6 +47,11 @@
   <sys:String x:Key="LOCDsInApex_SettingsEnableRumble">启用握把震动与音频触觉</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsHapticThreshold">触觉阈值（%）</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsInitTimeout">初始化超时（秒）</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyro">APEX 4 陀螺仪</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroHint">仅对飞智 APEX 4 生效。100% 为引擎按采捕数据标定的原始强度，可在此基础上缩放；改动需重启桥接（重新进入游戏）后生效。</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroStrength">总灵敏度（%）</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroYawStrength">偏航轴修正（%）</sys:String>
+  <sys:String x:Key="LOCDsInApex_SettingsGyroRangeTooltip">取值范围 25–400；100 表示不额外缩放。越界会被引擎拒绝，桥接将无法启动。</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsOverrides">手动覆盖</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsOverridesHint">全部保持自动时此列表为空。在游戏上右键 → Ds in Apex，可分别设置启用方式、触控板映射与 APEX 板载配置。</sys:String>
   <sys:String x:Key="LOCDsInApex_SettingsColumnGame">游戏</sys:String>
@@ -85,6 +90,7 @@
   <sys:String x:Key="LOCDsInApex_VerifyDeployRootNotFound">未找到 Ds in Apex。请先部署，或在扩展设置中选择 DsInApex.exe。</sys:String>
   <sys:String x:Key="LOCDsInApex_VerifyHapticRange">触觉阈值必须在 0 到 95 之间。</sys:String>
   <sys:String x:Key="LOCDsInApex_VerifyTimeoutRange">初始化超时必须在 5 到 60 秒之间。</sys:String>
+  <sys:String x:Key="LOCDsInApex_VerifyGyroRange">陀螺仪灵敏度必须在 25 到 400 之间（100 为默认）。</sys:String>
 
   <!-- ── 更新检查错误 ── -->
   <sys:String x:Key="LOCDsInApex_ErrBadTag">无法解析发布标签：{0}</sys:String>

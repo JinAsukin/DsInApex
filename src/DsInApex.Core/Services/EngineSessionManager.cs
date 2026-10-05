@@ -171,8 +171,19 @@ public sealed class EngineSessionManager
     }
 
     /// <summary>
-    /// 停止当前会话。**必须走 StopAndWait 的正常路径**，
-    /// 让引擎把手柄还原回原始状态。
+    /// 停止当前会话。**正常路径仍然优先协同停止**
+    /// （15 秒上限，让引擎把手柄还原回原始状态），
+    /// 但协同失败时会强制回收本次会话自己启动的子进程。
+    ///
+    /// <para>
+    /// 🔴 <b>为什么不能只 StopAndWait（上游 issue #15 / 我们同款缺陷）：</b>
+    /// 引擎若不响应 Stop 事件，<c>StopAndWait</c> 返回 false 之后我们就
+    /// <c>Dispose()</c> 掉句柄 —— 那个孤儿进程会继续攥着全局会话锁
+    /// <c>Local\ApexSenseBridge.ActiveSession.Owner.v1</c>，
+    /// 于是用户看到的现象是"手柄突然再也启动不了桥接"，
+    /// 而且重启 DIA 也没用（锁的属主还活着）。
+    /// 强制回收的作用域严格限定在本次启动的那一个进程，不扫全系统。
+    /// </para>
     /// </summary>
     public void StopSession(string reason)
     {
@@ -188,7 +199,16 @@ public sealed class EngineSessionManager
 
         RaiseLogMessage(LocFormat("Loc_LogStoppingSession", reason));
 
-        sessionToStop.StopAndWait(BridgeSession.DefaultStopTimeout);
+        bool clean = sessionToStop.StopAndEnsureExit(
+            BridgeSession.DefaultStopTimeout, BridgeSession.ForcedStopOnFailure);
+
+        if (!clean)
+        {
+            // 非干净退出要留痕：后续若出现"手柄不再被隐藏/会话锁残留"的报表，
+            // 这条日志就是第一现场证据。
+            RaiseLogMessage(Loc("Loc_ErrBridgeStopForced"));
+        }
+
         sessionToStop.Dispose();
 
         SessionStopped?.Invoke(reason);
@@ -306,8 +326,42 @@ public sealed class EngineSessionManager
             args.Add(apexProfileSlot.ToString(CultureInfo.InvariantCulture));
         }
 
+        // APEX 4 陀螺仪灵敏度（引擎 1.0.0-beta.10 起，上游 issue #10）。
+        // ⚠️ 只在非默认值时才追加：100 就是引擎默认值，不传与传 100 完全等价，
+        //    少两个参数能让日志与旧版逐字可比（便于回归时对照 tray_bridge.log）。
+        // ⚠️ 必须在这里夹紧而不是只靠界面：tray_settings.json 是用户可手改的，
+        //    而引擎对越界值是【拒绝启动】——把一次误编辑变成"手柄连不上"太不划算。
+        if (settings is not null)
+        {
+            int gyro = ClampGyroPercent(settings.Apex4GyroStrengthPercent);
+            if (gyro != 100)
+            {
+                args.Add("--apex4-gyro-strength");
+                args.Add(gyro.ToString(CultureInfo.InvariantCulture));
+            }
+
+            int gyroYaw = ClampGyroPercent(settings.Apex4GyroYawStrengthPercent);
+            if (gyroYaw != 100)
+            {
+                args.Add("--apex4-gyro-yaw-strength");
+                args.Add(gyroYaw.ToString(CultureInfo.InvariantCulture));
+            }
+        }
+
         return string.Join(" ", args);
     }
+
+    /// <summary>陀螺仪灵敏度下限（与 C++ <c>BridgeOptions.cpp</c> 逐字一致）。</summary>
+    public const int GyroPercentMin = 25;
+
+    /// <summary>陀螺仪灵敏度上限（与 C++ <c>BridgeOptions.cpp</c> 逐字一致）。</summary>
+    public const int GyroPercentMax = 400;
+
+    /// <summary>把陀螺仪灵敏度夹到引擎允许的 25–400。越界会让引擎拒绝启动，必须夹。</summary>
+    public static int ClampGyroPercent(int value)
+        => value < GyroPercentMin ? GyroPercentMin
+         : value > GyroPercentMax ? GyroPercentMax
+         : value;
 
     private static string Loc(string key) => LocalizationService.Shared.Get(key);
 

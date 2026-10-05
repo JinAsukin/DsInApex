@@ -143,6 +143,62 @@
                     </StackPanel>
                 </Expander>
 
+                <!-- ══ APEX 4 陀螺仪（引擎 1.0.0-beta.10 新增能力，上游 issue #10） ══
+                     ⚠️ 区间 25–400 是引擎硬契约：越界会被 C++ 参数解析器拒绝，
+                        整个桥接起不来。这里用 NumberBox 限制只是第一道闸，
+                        EngineSessionManager.BuildArguments 里还有一道夹紧（防手改 JSON）。 -->
+                <Expander loc:Localize.Header="Loc_SectionGyro" IsExpanded="False"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="14">
+                        <TextBlock loc:Localize.Key="Loc_GyroExplain"
+                                   FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_GyroStrength" />
+                                <TextBlock loc:Localize.Key="Loc_GyroStrengthHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <NumberBox Grid.Column="1" Width="140" Minimum="25" Maximum="400"
+                                       SmallChange="5" LargeChange="25"
+                                       SpinButtonPlacementMode="Inline"
+                                       Value="{x:Bind ViewModel.Apex4GyroStrength, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock loc:Localize.Key="Loc_GyroYawStrength" />
+                                <TextBlock loc:Localize.Key="Loc_GyroYawStrengthHint"
+                                           FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <NumberBox Grid.Column="1" Width="140" Minimum="25" Maximum="400"
+                                       SmallChange="5" LargeChange="25"
+                                       SpinButtonPlacementMode="Inline"
+                                       Value="{x:Bind ViewModel.Apex4GyroYawStrength, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{x:Bind ViewModel.Apex4GyroStateText, Mode=OneWay}"
+                                       FontSize="12" Opacity="0.6"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <Button Grid.Column="1" loc:Localize.Key="Loc_GyroReset"
+                                    Command="{x:Bind ViewModel.ResetApex4GyroCommand}" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+
                 <!-- ══ 外观 ══ -->
                 <Expander loc:Localize.Header="Loc_SectionAppearance" IsExpanded="True"
                           HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
